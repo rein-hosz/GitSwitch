@@ -61,7 +61,11 @@ pub fn list_accounts() {
     }
 
     println!("🔹 Saved Git Accounts:");
+    println!("----------------------------------------");
+    println!("Account Name | Git Username | Email");
+    println!("----------------------------------------");
     for acc in &accounts {
-        println!("- {} ({}) [SSH key: {}]", acc.name, acc.email, acc.ssh_key);
+        println!("{} | {} | {}", acc.name, acc.username, acc.email);
     }
+    println!("----------------------------------------");
 }

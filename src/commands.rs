@@ -42,9 +42,13 @@ pub fn add_account(name: &str, username: &str, email: &str) {
     println!("Copy this key and add it to your GitHub account at: https://github.com/settings/keys");
 }
 
-pub fn use_account(name: &str) {
+pub fn use_account(name_or_username: &str) {
     let accounts = load_accounts();
-    let account = accounts.iter().find(|acc| acc.name == name).cloned();
+
+    // Try to find account by name first, then by username
+    let account = accounts.iter()
+        .find(|acc| acc.name == name_or_username || acc.username == name_or_username)
+        .cloned();
 
     match account {
         Some(acc) => {
@@ -58,7 +62,7 @@ pub fn use_account(name: &str) {
 
             // Add SSH key to agent
             if add_ssh_key(&acc.ssh_key) {
-                println!("✅ Switched to Git account: {}", acc.name);
+                println!("✅ Switched to Git account: {} ({})", acc.name, acc.username);
 
                 // Ask if user wants to update current repo's remote URL
                 print!("Do you want to update remote URL for the current repository? (y/n): ");
@@ -79,14 +83,18 @@ pub fn use_account(name: &str) {
             }
         },
         None => {
-            println!("❌ Account '{}' not found.", name);
+            println!("❌ Account with name or username '{}' not found.", name_or_username);
 
             // List available accounts to help the user
             if !accounts.is_empty() {
-                println!("Available accounts:");
-                for acc in accounts {
-                    println!("- {}", acc.name);
+                println!("\nAvailable accounts:");
+                println!("----------------------------------------");
+                println!("Account Name | Git Username | Email");
+                println!("----------------------------------------");
+                for acc in &accounts {
+                    println!("{} | {} | {}", acc.name, acc.username, acc.email);
                 }
+                println!("----------------------------------------");
             }
         }
     }

@@ -17,12 +17,12 @@ fn main() {
                 .arg(Arg::new("name").required(true).help("Name for the account (e.g. 'Work', 'Personal')"))
                 .arg(Arg::new("username").required(true).help("Git username"))
                 .arg(Arg::new("email").required(true).help("Git email address")),
-        )
+            )
         .subcommand(
             Command::new("use")
                 .about("Switch to a saved Git account")
-                .arg(Arg::new("name").required(true).help("Name of the account to use")),
-        )
+                .arg(Arg::new("name").required(true).help("Name or username of the account to use")),
+            )
         .subcommand(Command::new("list").about("List all saved Git accounts"))
         .get_matches();
 

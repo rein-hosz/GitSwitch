@@ -23,7 +23,7 @@ A command-line tool to easily manage and switch between multiple Git accounts (p
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/git-switch.git
+   git clone https://github.com/rein-hosz/GitSwitch.git git-switch
    cd git-switch
    ```
 

@@ -16,11 +16,47 @@ A command-line tool to easily manage and switch between multiple Git accounts (p
 ### Prerequisites
 
 - Git
-- Rust and Cargo
 - SSH (OpenSSH)
+
+### Install from Packages
+
+#### Debian/Ubuntu and derivatives
+```bash
+sudo dpkg -i git-switch_0.1.0_amd64.deb
+```
+
+#### Fedora/RHEL/CentOS and derivatives
+```bash
+sudo rpm -i git-switch-0.1.0-1.x86_64.rpm
+```
+
+#### Other Linux distributions
+```bash
+# Extract the archive
+tar -xzvf git-switch-0.1.0.tar.gz
+cd git-switch
+
+# Run the install script
+./install.sh
+```
+
+#### Windows
+1. Extract the ZIP file `git-switch-0.1.0-windows.zip`
+2. Right-click on `install.bat` and select "Run as administrator"
+3. Restart your command prompt or PowerShell
+
+For manual installation on Windows:
+1. Copy `bin\git-switch.exe` to a location of your choice
+2. Add that location to your PATH environment variable
 
 ### Building from Source
 
+#### Prerequisites for building
+- Rust and Cargo
+- Build essentials package (for Linux)
+- Visual Studio Build Tools (for Windows)
+
+#### Build and install on Linux
 1. Clone the repository:
    ```bash
    git clone https://github.com/rein-hosz/GitSwitch.git git-switch
@@ -36,6 +72,48 @@ A command-line tool to easily manage and switch between multiple Git accounts (p
    ```bash
    cargo install --path .
    ```
+
+#### Build and install on Windows
+1. Clone the repository:
+   ```powershell
+   git clone https://github.com/rein-hosz/GitSwitch.git git-switch
+   cd git-switch
+   ```
+
+2. Build with Cargo:
+   ```powershell
+   cargo build --release
+   ```
+
+3. Copy the binary to a location in your PATH:
+   ```powershell
+   copy target\release\git_switch.exe C:\path\to\bin\git-switch.exe
+   ```
+
+#### Building packages
+
+##### Linux Packages
+You can build installation packages for Linux using the included build script:
+
+```bash
+# Build all package types
+./build.sh --all
+
+# Or build specific package types
+./build.sh --deb       # Build only Debian package
+./build.sh --rpm       # Build only RPM package
+./build.sh --tarball   # Build only tarball
+```
+
+##### Windows Package
+Build a Windows installable ZIP package:
+
+```powershell
+# Build the Windows package
+.\build-windows.ps1
+```
+
+The packages will be created in the `target` directory.
 
 ## Usage
 
@@ -61,11 +139,15 @@ This will:
 
 ```bash
 git-switch use "Account Name"
+# OR
+git-switch use "Git Username"
 ```
 
 For example:
 ```bash
 git-switch use "Personal"
+# OR
+git-switch use "johndoe"
 ```
 
 This will:
@@ -83,9 +165,15 @@ This will display all saved accounts with their details.
 
 ## Configuration
 
-All account information is stored in `~/.git-switch-accounts`.
-SSH keys are stored in `~/.ssh/` with names based on the account name (e.g., `~/.ssh/id_rsa_personal`).
-SSH configuration is updated in `~/.ssh/config`.
+- **Linux/macOS**:
+  - Configuration stored in `~/.git-switch-accounts`
+  - SSH keys stored in `~/.ssh/` with names based on account names
+  - SSH configuration updated in `~/.ssh/config`
+
+- **Windows**:
+  - Configuration stored in `%USERPROFILE%\.git-switch-accounts`
+  - SSH keys stored in `%USERPROFILE%\.ssh\`
+  - SSH configuration updated in `%USERPROFILE%\.ssh\config`
 
 ## How It Works
 
@@ -95,6 +183,12 @@ GitSwitch simplifies managing multiple Git identities by:
 2. Configuring SSH to use different keys for different repositories
 3. Providing easy commands to switch between configurations
 4. Automating Git config updates
+
+## Platform Support
+
+- **Linux**: Full support for Debian, Ubuntu, Fedora, RHEL, CentOS, and other distributions
+- **Windows**: Full support for Windows 10 and later
+- **macOS**: Support through the tarball package
 
 ## Contributing
 

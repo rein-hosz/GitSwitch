@@ -9,6 +9,7 @@ license = "MIT"
 [dependencies]
 shellexpand = "3.1"
 clap = { version = "4", features = ["derive"] }
+dirs = "5.0.1"
 
 [package.metadata.deb]
 maintainer = "Ren Hoshizora <blackswordman@gmail.com>"

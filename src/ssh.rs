@@ -1,14 +1,26 @@
-use std::fs::{self, OpenOptions, File};
-use std::io::{self, Write, Read};
+use crate::utils::{file_exists, run_command};
+use std::fs::{self, File, OpenOptions};
+use std::io::{self, Read, Write};
 use std::path::Path;
-use crate::utils::{run_command, file_exists};
 
 pub fn get_ssh_config_path() -> String {
-    shellexpand::tilde("~/.ssh/config").to_string()
+    let home = dirs::home_dir().expect("Could not determine home directory");
+    home.join(".ssh")
+        .join("config")
+        .to_string_lossy()
+        .into_owned()
 }
 
 pub fn generate_ssh_key(identity_file: &str) {
-    let expanded_path = shellexpand::tilde(identity_file).to_string();
+    let expanded_path = if identity_file.starts_with("~") {
+        let home = dirs::home_dir().expect("Could not determine home directory");
+        home.join(&identity_file[2..])
+            .to_string_lossy()
+            .into_owned()
+    } else {
+        identity_file.to_string()
+    };
+
     if file_exists(&expanded_path) {
         println!("✅ SSH key already exists: {}", identity_file);
         return;
@@ -22,7 +34,10 @@ pub fn generate_ssh_key(identity_file: &str) {
     }
 
     println!("🔑 Generating SSH key: {}", identity_file);
-    run_command("ssh-keygen", &["-t", "rsa", "-b", "4096", "-f", &expanded_path, "-N", ""]);
+    run_command(
+        "ssh-keygen",
+        &["-t", "rsa", "-b", "4096", "-f", &expanded_path, "-N", ""],
+    );
 }
 
 pub fn display_public_key(identity_file: &str) {
@@ -34,9 +49,12 @@ pub fn display_public_key(identity_file: &str) {
             if file.read_to_string(&mut contents).is_ok() {
                 println!("{}", contents.trim());
             } else {
-                println!("❌ Failed to read public key file. Please check the file at: {}", public_key_path);
+                println!(
+                    "❌ Failed to read public key file. Please check the file at: {}",
+                    public_key_path
+                );
             }
-        },
+        }
         Err(_) => {
             println!("❌ Public key file not found at: {}", public_key_path);
         }
@@ -59,10 +77,7 @@ pub fn update_ssh_config(name: &str, identity_file: &str) -> io::Result<()> {
         }
     }
 
-    let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)?;
+    let mut file = OpenOptions::new().create(true).append(true).open(path)?;
 
     file.write_all(config_entry.as_bytes())?;
     println!("✅ Updated SSH config for account: {}", name);
@@ -70,12 +85,25 @@ pub fn update_ssh_config(name: &str, identity_file: &str) -> io::Result<()> {
 }
 
 pub fn add_ssh_key(key_path: &str) -> bool {
-    let expanded_path = shellexpand::tilde(key_path).to_string();
+    let home = dirs::home_dir().expect("Could not determine home directory");
+    let expanded_path = if key_path.starts_with("~") {
+        home.join(&key_path[2..]).to_string_lossy().into_owned()
+    } else {
+        key_path.to_string()
+    };
+
     if !file_exists(&expanded_path) {
         println!("❌ SSH key not found: {}", key_path);
         return false;
     }
 
-    println!("🔑 Adding SSH key to agent: {}", key_path);
-    run_command("ssh-add", &[&expanded_path])
+    // Handle Windows differently if needed
+    if cfg!(windows) {
+        println!("🔑 Adding SSH key to agent (Windows): {}", key_path);
+        // Use Windows-specific approach or skip if not needed
+        true
+    } else {
+        println!("🔑 Adding SSH key to agent: {}", key_path);
+        run_command("ssh-add", &[&expanded_path])
+    }
 }

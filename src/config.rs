@@ -1,9 +1,12 @@
+use crate::utils::file_exists;
 use std::fs::{self, OpenOptions};
 use std::io::{self, BufRead, Write};
-use crate::utils::file_exists;
 
 pub fn get_config_path() -> String {
-    shellexpand::tilde("~/.git-switch-accounts").to_string()
+    let home = dirs::home_dir().expect("Could not determine home directory");
+    home.join(".git-switch-accounts")
+        .to_string_lossy()
+        .into_owned()
 }
 
 #[derive(Debug, Clone)]
@@ -16,13 +19,17 @@ pub struct Account {
 
 pub fn save_account(account: &Account) {
     let config_path = get_config_path();
-    let entry = format!("{}|{}|{}|{}\n", account.name, account.username, account.email, account.ssh_key);
+    let entry = format!(
+        "{}|{}|{}|{}\n",
+        account.name, account.username, account.email, account.ssh_key
+    );
     let mut file = OpenOptions::new()
         .append(true)
         .create(true)
         .open(&config_path)
         .expect("Failed to open config file");
-    file.write_all(entry.as_bytes()).expect("Failed to save account");
+    file.write_all(entry.as_bytes())
+        .expect("Failed to save account");
     println!("✅ Account '{}' saved.", account.name);
 }
 

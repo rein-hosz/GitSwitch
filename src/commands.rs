@@ -1,4 +1,5 @@
-use crate::config::{load_accounts, save_account, Account};
+use crate::config::{load_accounts, save_account, delete_account, Account};
+use crate::ssh::{update_ssh_config, generate_ssh_key, add_ssh_key, display_public_key, remove_ssh_config_entry, delete_ssh_key_files};
 use crate::git::update_git_remote;
 use crate::ssh::{update_ssh_config, generate_ssh_key, add_ssh_key, display_public_key};
 use crate::utils::run_command;
@@ -96,6 +97,36 @@ pub fn use_account(name_or_username: &str) {
                 }
                 println!("----------------------------------------");
             }
+        }
+    }
+}
+
+pub fn remove_account(name: &str) {
+    let accounts = load_accounts();
+    let account_to_delete = accounts.iter().find(|acc| acc.name == name);
+
+    match account_to_delete {
+        Some(account) => {
+            // 1. Remove from config.rs
+            if let Err(e) = delete_account(name) {
+                eprintln!("❌ Failed to remove account from config: {}", e);
+                // Optionally, decide if you want to proceed with SSH key deletion if config deletion fails
+            }
+
+            // 2. Remove SSH config entry
+            if let Err(e) = remove_ssh_config_entry(name) {
+                eprintln!("❌ Failed to remove SSH config entry: {}", e);
+            }
+
+            // 3. Delete SSH key files
+            if let Err(e) = delete_ssh_key_files(&account.ssh_key) {
+                eprintln!("❌ Failed to delete SSH key files: {}", e);
+            }
+
+            println!("✅ Account '{}' and its associated SSH configurations and keys have been removed.", name);
+        }
+        None => {
+            println!("❌ Account with name '{}' not found.", name);
         }
     }
 }

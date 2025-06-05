@@ -84,6 +84,80 @@ pub fn update_ssh_config(name: &str, identity_file: &str) -> io::Result<()> {
     Ok(())
 }
 
+pub fn remove_ssh_config_entry(name: &str) -> io::Result<()> {
+    let config_path_str = get_ssh_config_path();
+    let path = Path::new(&config_path_str);
+
+    if !path.exists() {
+        println!("ℹ️ SSH config file not found, nothing to remove for account '{}'.", name);
+        return Ok(());
+    }
+
+    let file = File::open(path)?;
+    let reader = io::BufReader::new(file);
+
+    let mut new_content = String::new();
+    let mut in_matching_block = false;
+    let mut lines_to_skip = 0;
+
+    let entry_header = format!("# {} GitHub Account", name);
+
+    for line in reader.lines() {
+        let line = line?;
+        if line.trim() == entry_header {
+            in_matching_block = true;
+            lines_to_skip = 4; // Header + 3 lines of config
+        }
+
+        if in_matching_block {
+            if lines_to_skip > 0 {
+                lines_to_skip -= 1;
+                // Skip this line
+            } else {
+                in_matching_block = false;
+                // Add this line as it's after the block to remove
+                new_content.push_str(&line);
+                new_content.push('\n');
+            }
+        } else {
+            new_content.push_str(&line);
+            new_content.push('\n');
+        }
+    }
+
+    // Remove trailing newline if it's the only thing left, or multiple newlines at the end
+    while new_content.ends_with("\n\n") {
+        new_content.pop();
+    }
+    if new_content == "\n" { // If only a single newline is left
+        new_content.clear();
+    }
+
+
+    let mut file = OpenOptions::new().write(true).truncate(true).open(path)?;
+    file.write_all(new_content.as_bytes())?;
+    println!("🗑️ SSH config entry for '{}' removed.", name);
+    Ok(())
+}
+
+pub fn delete_ssh_key_files(identity_file_base: &str) -> io::Result<()> {
+    let base_path = shellexpand::tilde(identity_file_base).to_string();
+    let private_key_path = Path::new(&base_path);
+    let public_key_path = Path::new(&format!("{}.pub", base_path));
+
+    if private_key_path.exists() {
+        fs::remove_file(private_key_path)?;
+        println!("🗑️ Deleted private SSH key: {}", private_key_path.display());
+    }
+
+    if public_key_path.exists() {
+        fs::remove_file(public_key_path)?;
+        println!("🗑️ Deleted public SSH key: {}", public_key_path.display());
+    }
+
+    Ok(())
+}
+
 pub fn add_ssh_key(key_path: &str) -> bool {
     let home = dirs::home_dir().expect("Could not determine home directory");
     let expanded_path = if key_path.starts_with("~") {

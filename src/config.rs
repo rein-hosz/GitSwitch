@@ -60,6 +60,31 @@ pub fn load_accounts() -> Vec<Account> {
         .collect()
 }
 
+pub fn delete_account(name_to_delete: &str) -> io::Result<()> {
+    let accounts = load_accounts();
+    let updated_accounts: Vec<Account> = accounts
+        .into_iter()
+        .filter(|acc| acc.name != name_to_delete)
+        .collect();
+
+    let config_path = get_config_path();
+    let mut file = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .create(true)
+        .open(&config_path)?;
+
+    for account in updated_accounts {
+        let entry = format!(
+            "{}|{}|{}|{}\n",
+            account.name, account.username, account.email, account.ssh_key
+        );
+        file.write_all(entry.as_bytes())?;
+    }
+    println!("🗑️ Account '{}' removed from config.", name_to_delete);
+    Ok(())
+}
+
 pub fn list_accounts() {
     let accounts = load_accounts();
     if accounts.is_empty() {

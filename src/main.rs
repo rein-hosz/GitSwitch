@@ -1,4 +1,5 @@
 use clap::{Arg, Command};
+use crate::commands::{add_account, list_accounts, use_account, remove_account};
 use crate::commands::{add_account, list_accounts, use_account};
 
 mod commands;
@@ -24,6 +25,11 @@ fn main() {
                 .arg(Arg::new("name").required(true).help("Name or username of the account to use")),
             )
         .subcommand(Command::new("list").about("List all saved Git accounts"))
+        .subcommand(
+            Command::new("remove")
+                .about("Remove a saved Git account and its SSH key")
+                .arg(Arg::new("name").required(true).help("Name of the account to remove")),
+        )
         .get_matches();
 
     match matches.subcommand() {
@@ -38,6 +44,13 @@ fn main() {
             use_account(name);
         }
         Some(("list", _)) => {
+            list_accounts();
+        }
+        Some(("remove", sub_m)) => {
+            let name = sub_m.get_one::<String>("name").unwrap();
+            remove_account(name);
+        }
+        _ => {
             list_accounts();
         }
         _ => {

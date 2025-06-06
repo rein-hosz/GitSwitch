@@ -1,78 +1,90 @@
-use crate::utils::file_exists;
-use std::fs::{self, OpenOptions};
-use std::io::{self, BufRead, Write};
+use crate::error::{GitSwitchError, Result};
+use crate::utils::{ensure_parent_dir_exists, read_file_content, write_file_content};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::path::PathBuf;
 
-pub fn get_config_path() -> String {
-    let home = dirs::home_dir().expect("Could not determine home directory");
-    home.join(".git-switch-accounts")
-        .to_string_lossy()
-        .into_owned()
-}
+const CONFIG_FILE_NAME: &str = ".git-switch-config.json";
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Account {
     pub name: String,
     pub username: String,
     pub email: String,
-    pub ssh_key: String,
+    pub ssh_key_path: String, // Changed from ssh_key to ssh_key_path
 }
 
-pub fn save_account(account: &Account) {
-    let config_path = get_config_path();
-    let entry = format!(
-        "{}|{}|{}|{}\n",
-        account.name, account.username, account.email, account.ssh_key
-    );
-    let mut file = OpenOptions::new()
-        .append(true)
-        .create(true)
-        .open(&config_path)
-        .expect("Failed to open config file");
-    file.write_all(entry.as_bytes())
-        .expect("Failed to save account");
-    println!("✅ Account '{}' saved.", account.name);
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct Config {
+    pub accounts: HashMap<String, Account>,
 }
 
-pub fn load_accounts() -> Vec<Account> {
-    let config_path = get_config_path();
-    if !file_exists(&config_path) {
-        return Vec::new();
+fn get_config_file_path() -> Result<PathBuf> {
+    if let Some(home_dir) = home::home_dir() {
+        Ok(home_dir.join(CONFIG_FILE_NAME))
+    } else {
+        Err(GitSwitchError::HomeDirectoryNotFound)
     }
-
-    let file = fs::File::open(&config_path).expect("Failed to open config file");
-    let reader = io::BufReader::new(file);
-    reader
-        .lines()
-        .filter_map(|line| {
-            if let Ok(line) = line {
-                let parts: Vec<&str> = line.split('|').collect();
-                if parts.len() == 4 {
-                    return Some(Account {
-                        name: parts[0].to_string(),
-                        username: parts[1].to_string(),
-                        email: parts[2].to_string(),
-                        ssh_key: parts[3].to_string(),
-                    });
-                }
-            }
-            None
-        })
-        .collect()
 }
 
-pub fn list_accounts() {
-    let accounts = load_accounts();
-    if accounts.is_empty() {
+pub fn load_config() -> Result<Config> {
+    let config_path = get_config_file_path()?;
+    if !config_path.exists() {
+        return Ok(Config::default()); // Return a default empty config if file doesn't exist
+    }
+    let content = read_file_content(&config_path)?;
+    serde_json::from_str(&content).map_err(GitSwitchError::Json)
+}
+
+pub fn save_config(config: &Config) -> Result<()> {
+    let config_path = get_config_file_path()?;
+    ensure_parent_dir_exists(&config_path)?;
+    let content = serde_json::to_string_pretty(config).map_err(GitSwitchError::Json)?;
+    write_file_content(&config_path, &content)
+}
+
+pub fn save_account(account: &Account) -> Result<()> {
+    let mut config = load_config().unwrap_or_else(|_| Config::default()); // Load or create new
+    if config.accounts.contains_key(&account.name) {
+        return Err(GitSwitchError::AccountExists {
+            name: account.name.clone(),
+        });
+    }
+    config
+        .accounts
+        .insert(account.name.clone(), account.clone());
+    save_config(&config)
+}
+
+pub fn find_account(name_or_username: &str) -> Result<Account> {
+    let config = load_config()?;
+    if let Some(account) = config.accounts.get(name_or_username) {
+        return Ok(account.clone());
+    }
+    config
+        .accounts
+        .values()
+        .find(|acc| acc.username == name_or_username)
+        .cloned()
+        .ok_or_else(|| GitSwitchError::AccountNotFound {
+            name: name_or_username.to_string(),
+        })
+}
+
+pub fn list_accounts() -> Result<()> {
+    let config = load_config()?;
+    if config.accounts.is_empty() {
         println!("No saved accounts.");
-        return;
+        return Ok(());
     }
 
     println!("🔹 Saved Git Accounts:");
-    println!("----------------------------------------");
-    println!("Account Name | Git Username | Email");
-    println!("----------------------------------------");
-    for acc in &accounts {
-        println!("{} | {} | {}", acc.name, acc.username, acc.email);
+    println!("---------------------------------------------------------------------");
+    println!("{:<20} | {:<25} | {:<30}", "Account Name", "Git Username", "Email");
+    println!("---------------------------------------------------------------------");
+    for acc in config.accounts.values() {
+        println!("{:<20} | {:<25} | {:<30}", acc.name, acc.username, acc.email);
     }
-    println!("----------------------------------------");
+    println!("---------------------------------------------------------------------");
+    Ok(())
 }

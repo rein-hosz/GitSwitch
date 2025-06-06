@@ -186,7 +186,7 @@ Release:        1%{?dist}
 Summary:        CLI tool to switch between multiple Git accounts
 
 License:        MIT
-URL:            https://github.com/rein-hosz/GitSwitch # Replace with your actual repo URL if different
+URL:            https://github.com/rein-hosz/GitSwitch
 Source0:        %{name}-%{version}.tar.gz
 
 Requires:       git

@@ -9,8 +9,8 @@ Param(
 $ErrorActionPreference = "Stop"
 
 # Configuration
-$AppName = "git-switch" # User-facing name, used for ZIP file
-$BinaryName = "git_switch" # Actual name of the compiled executable
+$AppName = "git-switch" # User-facing name, used for ZIP file and is the actual binary name
+$BinaryName = "git-switch" # Actual name of the compiled executable, aligning with Cargo.toml package name
 $Version = "" # Initialize Version variable
 $OriginalCargoTomlContent = ""
 $ProjectRoot = (Get-Location).Path

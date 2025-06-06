@@ -73,6 +73,35 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "$AppName built successfully." -ForegroundColor Green
 
+# Determine the location of the built executable
+$ExePath = ""
+$PossibleExePaths = @(
+    "target\\release\\$AppName.exe",
+    "target\\x86_64-pc-windows-msvc\\release\\$AppName.exe", # Common for MSVC toolchain on GitHub runners
+    "target\\x86_64-pc-windows-gnu\\release\\$AppName.exe"  # Common for GNU toolchain
+)
+
+foreach ($PathAttempt in $PossibleExePaths) {
+    if (Test-Path $PathAttempt) {
+        $ExePath = $PathAttempt
+        break
+    }
+}
+
+if ([string]::IsNullOrEmpty($ExePath)) {
+    Write-Host "Error: Could not find $AppName.exe in the following checked paths:" -ForegroundColor Red
+    $PossibleExePaths | ForEach-Object { Write-Host "  - $_" }
+    Write-Host "Listing target\\release contents (if exists):"
+    Get-ChildItem -Path "target\\release" -ErrorAction SilentlyContinue
+    Write-Host "Listing target\\x86_64-pc-windows-msvc\\release contents (if exists):"
+    Get-ChildItem -Path "target\\x86_64-pc-windows-msvc\\release" -ErrorAction SilentlyContinue
+    Write-Host "Listing target\\x86_64-pc-windows-gnu\\release contents (if exists):"
+    Get-ChildItem -Path "target\\x86_64-pc-windows-gnu\\release" -ErrorAction SilentlyContinue
+    exit 1
+}
+Write-Host "Found executable at: $ExePath" -ForegroundColor Green
+
+
 # Create output directory for packaging
 $PackageDirName = "$AppName-$Version-windows-pkg"
 $PackagePath = Join-Path -Path "target" -ChildPath $PackageDirName
@@ -85,7 +114,7 @@ New-Item -ItemType Directory -Path $PackagePath -Force | Out-Null
 Write-Host "Created package directory: $PackagePath" -ForegroundColor Green
 
 # Files to include in the ZIP
-$SourceExe = "target\\release\\$AppName.exe"
+$SourceExe = $ExePath # Use the dynamically found path
 $SourceInstallScript = "install.ps1"
 $SourceReadme = "README.md"
 $SourceLicense = "LICENSE"

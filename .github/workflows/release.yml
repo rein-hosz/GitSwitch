@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*.*.*" # Trigger on version tags like v0.1.0, v1.0.0, etc.
+  workflow_dispatch: # Allows manual triggering
 
 jobs:
   build-linux:
@@ -12,7 +13,7 @@ jobs:
     outputs:
       version: ${{ steps.get_version.outputs.VERSION }}
       version_no_v: ${{ steps.get_version.outputs.VERSION_NO_V }}
-      tar_gz_name: git-switch-${{ steps.get_version.outputs.VERSION }}.tar.gz
+      tar_gz_name: git-switch-${{ steps.get_version.outputs.VERSION_NO_V }}.tar.gz # Use VERSION_NO_V for consistency with local
       deb_name_pattern: git-switch_${{ steps.get_version.outputs.VERSION_NO_V }}-*amd64.deb
       rpm_name_pattern: git-switch-${{ steps.get_version.outputs.VERSION_NO_V }}-*.x86_64.rpm
     steps:
@@ -27,7 +28,8 @@ jobs:
           VERSION_TAG=$(git describe --tags --abbrev=0)
           echo "VERSION=${VERSION_TAG}" >> $GITHUB_OUTPUT
           echo "VERSION_NO_V=${VERSION_TAG#v}" >> $GITHUB_OUTPUT
-          echo "Git describe output: $VERSION_TAG"
+          echo "Linux: Git describe output (VERSION): $VERSION_TAG"
+          echo "Linux: Version without v (VERSION_NO_V): ${VERSION_TAG#v}"
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -36,7 +38,7 @@ jobs:
 
       - name: Install cargo-deb and cargo-generate-rpm
         run: |
-          sudo apt-get update
+          sudo apt-get update -y
           sudo apt-get install -y libssl-dev pkg-config # Dependencies for some crates
           cargo install cargo-deb cargo-generate-rpm
           echo "cargo-deb and cargo-generate-rpm installed."
@@ -56,28 +58,25 @@ jobs:
 
       - name: Run Linux build script
         run: |
-          echo "Running build.sh --all --version ${{ steps.get_version.outputs.VERSION }}"
-          ./build.sh --all --version ${{ steps.get_version.outputs.VERSION }}
+          echo "Running build.sh --all --version ${{ steps.get_version.outputs.VERSION_NO_V }}" # Pass VERSION_NO_V to build.sh
+          ./build.sh --all --version ${{ steps.get_version.outputs.VERSION_NO_V }}
         env:
           CARGO_TERM_COLOR: always
 
       - name: List target directory after Linux build (for debugging)
         run: |
-          echo "Listing target/ contents:"
-          ls -R target/
-          echo "Listing target/debian contents:"
-          ls -R target/debian/ || echo "target/debian not found or empty"
-          echo "Listing target/rpm contents:"
-          ls -R target/rpm/ || echo "target/rpm not found or empty"
+          echo "Listing target/ contents (Linux):"
+          ls -AlR target/
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
           name: linux-artifacts-${{ steps.get_version.outputs.VERSION }}
           path: |
-            target/git-switch-${{ steps.get_version.outputs.VERSION }}.tar.gz
+            target/git-switch-${{ steps.get_version.outputs.VERSION_NO_V }}.tar.gz
             target/debian/git-switch_${{ steps.get_version.outputs.VERSION_NO_V }}-*amd64.deb
             target/rpm/git-switch-${{ steps.get_version.outputs.VERSION_NO_V }}-*.x86_64.rpm
+            target/rpm-build/RPMS/x86_64/git-switch-${{ steps.get_version.outputs.VERSION_NO_V }}-*.x86_64.rpm # Alternative RPM path
           if-no-files-found: error
 
   build-windows:
@@ -97,13 +96,14 @@ jobs:
         run: |
           $VERSION_TAG = git describe --tags --abbrev=0
           Add-Content -Path $env:GITHUB_OUTPUT -Value "VERSION=$VERSION_TAG"
-          Write-Host "Git describe output: $VERSION_TAG"
+          Write-Host "Windows: Git describe output (VERSION): $VERSION_TAG"
         shell: pwsh
 
-      - name: Set up Rust toolchain
+      - name: Set up Rust toolchain (GNU for Windows)
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
+          target: x86_64-pc-windows-gnu # Explicitly set target if needed
 
       - name: Cache Cargo dependencies
         uses: actions/cache@v4
@@ -114,9 +114,9 @@ jobs:
             C:\Users\runneradmin\.cargo\registry\cache
             C:\Users\runneradmin\.cargo\git\db
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-x86_64-pc-windows-gnu-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-cargo-x86_64-pc-windows-gnu-
 
       - name: Run Windows build script
         shell: pwsh
@@ -125,11 +125,14 @@ jobs:
           .\build-windows.ps1 -BuildVersion ${{ steps.get_version.outputs.VERSION }}
         env:
           CARGO_TERM_COLOR: always
+          RUSTFLAGS: "-C strip=debuginfo" # Ensure release builds are stripped
 
       - name: List target directory after Windows build (for debugging)
         run: |
-          Write-Host "Listing target/ contents:"
-          Get-ChildItem -Path target -Recurse
+          Write-Host "Listing target/ contents (Windows):"
+          Get-ChildItem -Path target -Recurse -ErrorAction SilentlyContinue
+          Write-Host "Listing target/x86_64-pc-windows-gnu/release contents (Windows):"
+          Get-ChildItem -Path target/x86_64-pc-windows-gnu/release -Recurse -ErrorAction SilentlyContinue
         shell: pwsh
 
       - name: Upload Windows artifact (ZIP)
@@ -146,7 +149,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Get version from Linux build job outputs
+      - name: Get version info from Linux build job outputs
         id: get_version_linux
         run: |
           echo "VERSION=${{ needs.build-linux.outputs.version }}" >> $GITHUB_OUTPUT
@@ -155,7 +158,7 @@ jobs:
           echo "DEB_NAME_PATTERN=${{ needs.build-linux.outputs.deb_name_pattern }}" >> $GITHUB_OUTPUT
           echo "RPM_NAME_PATTERN=${{ needs.build-linux.outputs.rpm_name_pattern }}" >> $GITHUB_OUTPUT
 
-      - name: Get version and ZIP name from Windows build job outputs
+      - name: Get ZIP name from Windows build job outputs
         id: get_version_windows
         run: |
           echo "ZIP_NAME=${{ needs.build-windows.outputs.zip_name }}" >> $GITHUB_OUTPUT
@@ -169,84 +172,82 @@ jobs:
       - name: Download Windows artifacts
         uses: actions/download-artifact@v4
         with:
-          name: windows-artifacts-${{ needs.build-linux.outputs.version }} # Version from Linux job is the reference
+          name: windows-artifacts-${{ needs.build-linux.outputs.version }} # Use version from Linux job as the reference
           path: dist/windows
 
       - name: List downloaded files (for debugging)
         run: |
-          echo "Listing dist/ contents:"
-          ls -R dist
+          echo "Listing dist/ contents after download:"
+          ls -AlR dist
 
       - name: Prepare Release Assets
         id: prep_assets
         run: |
           VERSION_TAG="${{ steps.get_version_linux.outputs.VERSION }}"
+          VERSION_NO_V_TAG="${{ steps.get_version_linux.outputs.VERSION_NO_V }}"
           TAR_GZ_NAME_EXPECTED="${{ steps.get_version_linux.outputs.TAR_GZ_NAME }}"
-          DEB_PATTERN="${{ steps.get_version_linux.outputs.DEB_NAME_PATTERN }}"
-          RPM_PATTERN="${{ steps.get_version_linux.outputs.RPM_NAME_PATTERN }}"
+          DEB_PATTERN_EXPECTED="${{ steps.get_version_linux.outputs.DEB_NAME_PATTERN }}"
+          RPM_PATTERN_EXPECTED="${{ steps.get_version_linux.outputs.RPM_NAME_PATTERN }}"
           WINDOWS_ZIP_NAME_EXPECTED="${{ steps.get_version_windows.outputs.ZIP_NAME }}"
 
           mkdir -p release_assets
-          echo "Looking for Linux artifacts in dist/linux/"
-          ls -R dist/linux/
-          echo "Looking for Windows artifacts in dist/windows/"
-          ls -R dist/windows/
+          echo "--- Locating Linux Assets in dist/linux/ ---"
+          ls -AlR dist/linux/
+          echo "--- Locating Windows Assets in dist/windows/ ---"
+          ls -AlR dist/windows/
 
           # Tar.gz
           TAR_GZ_FILE=$(find dist/linux -name "$TAR_GZ_NAME_EXPECTED" -type f)
           if [ -f "$TAR_GZ_FILE" ]; then
             cp "$TAR_GZ_FILE" release_assets/
-            echo "Copied $TAR_GZ_FILE to release_assets/"
+            echo "Copied TAR.GZ: $TAR_GZ_FILE to release_assets/"
           else
             echo "::error::Tar.gz file not found: $TAR_GZ_NAME_EXPECTED in dist/linux/"
-            # exit 1 # Temporarily commented for testing, re-enable later
+            exit 1
           fi
 
           # Deb
-          # The pattern from build.sh might be slightly different than what cargo-deb produces if there are epoch/revision numbers
-          # For cargo-deb, the version is usually just ${VERSION_NO_V}-1
-          DEB_FILE=$(find dist/linux -name "${DEB_PATTERN}" -type f)
-          if [ -z "$DEB_FILE" ]; then # If find returns multiple, take the first one
-             DEB_FILE=$(find dist/linux -name "git-switch_${{ steps.get_version_linux.outputs.VERSION_NO_V }}-*amd64.deb" -type f | head -n 1)
-          fi
+          DEB_FILE=$(find dist/linux -path "*/debian/*" -name "$DEB_PATTERN_EXPECTED" -type f | head -n 1)
           if [ -f "$DEB_FILE" ]; then
             cp "$DEB_FILE" release_assets/
-            echo "Copied $DEB_FILE to release_assets/"
+            echo "Copied DEB: $DEB_FILE to release_assets/"
           else
-            echo "::error::Deb file not found with pattern: ${DEB_PATTERN} or git-switch_${{ steps.get_version_linux.outputs.VERSION_NO_V }}-*amd64.deb in dist/linux/"
-            # exit 1
+            echo "::error::Deb file not found with pattern: $DEB_PATTERN_EXPECTED in dist/linux/debian/"
+            exit 1
           fi
 
           # RPM
-          RPM_FILE=$(find dist/linux -name "${RPM_PATTERN}" -type f)
-          if [ -z "$RPM_FILE" ]; then
-             RPM_FILE=$(find dist/linux -name "git-switch-${{ steps.get_version_linux.outputs.VERSION_NO_V }}-*.x86_64.rpm" -type f | head -n 1)
+          # Check both target/rpm and target/rpm-build/RPMS/x86_64
+          RPM_FILE=$(find dist/linux -path "*/rpm/*" -name "$RPM_PATTERN_EXPECTED" -type f | head -n 1)
+          if [ ! -f "$RPM_FILE" ]; then
+            RPM_FILE=$(find dist/linux -path "*/rpm-build/RPMS/x86_64/*" -name "$RPM_PATTERN_EXPECTED" -type f | head -n 1)
           fi
           if [ -f "$RPM_FILE" ]; then
             cp "$RPM_FILE" release_assets/
-            echo "Copied $RPM_FILE to release_assets/"
+            echo "Copied RPM: $RPM_FILE to release_assets/"
           else
-            echo "::error::RPM file not found with pattern: ${RPM_PATTERN} or git-switch-${{ steps.get_version_linux.outputs.VERSION_NO_V }}-*.x86_64.rpm in dist/linux/"
-            # exit 1
+            echo "::error::RPM file not found with pattern: $RPM_PATTERN_EXPECTED in dist/linux/rpm/ or dist/linux/rpm-build/RPMS/x86_64/"
+            exit 1
           fi
             
           # Windows Zip
           WINDOWS_ZIP_FILE=$(find dist/windows -name "$WINDOWS_ZIP_NAME_EXPECTED" -type f)
           if [ -f "$WINDOWS_ZIP_FILE" ]; then
             cp "$WINDOWS_ZIP_FILE" release_assets/
-            echo "Copied $WINDOWS_ZIP_FILE to release_assets/"
+            echo "Copied Windows ZIP: $WINDOWS_ZIP_FILE to release_assets/"
           else
             echo "::error::Windows ZIP file not found: $WINDOWS_ZIP_NAME_EXPECTED in dist/windows/"
-            # exit 1
+            exit 1
           fi
 
-          echo "Prepared assets in release_assets/ directory:"
-          ls release_assets
+          echo "--- Prepared assets in release_assets/ directory: ---"
+          ls -Al release_assets
 
           ASSET_FILES=$(find release_assets -type f -printf '%p,' | sed 's/,$//')
           echo "ASSET_FILES=${ASSET_FILES}" >> $GITHUB_OUTPUT
           if [ -z "$ASSET_FILES" ]; then
-            echo "::warning::No asset files were found to upload."
+            echo "::error::No asset files were found to upload after preparation."
+            exit 1
           fi
 
       - name: Create Release

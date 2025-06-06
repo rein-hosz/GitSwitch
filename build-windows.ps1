@@ -5,21 +5,54 @@ $ErrorActionPreference = "Stop"
 
 # Configuration
 $AppName = "git-switch"
-$Version = ""
+$Version = "" # Initialize Version variable
 
-# Get version from Cargo.toml
-if (Test-Path "Cargo.toml") {
+# Parameter for version override
+Param(
+    [string]$BuildVersion = ""
+)
+
+# Determine version
+if ($BuildVersion -ne "") {
+    $Version = $BuildVersion
+    Write-Host "Using provided version: $Version" -ForegroundColor Yellow
+} elseif (Test-Path "Cargo.toml") {
     $CargoContent = Get-Content -Path "Cargo.toml" -Raw
     if ($CargoContent -match 'version\s*=\s*"([^"]+)"') {
-        $Version = $Matches[1]
+        $Version = "v" + $Matches[1] # Add 'v' prefix to match tag format
+        Write-Host "Using version from Cargo.toml: $Version" -ForegroundColor Green
     }
 }
+
 if ($Version -eq "") {
-    $Version = "0.1.0"
+    # Try to get version from git tag
+    try {
+        # Ensure git command is available and we are in a git repo
+        $GitPathTest = Get-Command git -ErrorAction SilentlyContinue
+        if ($GitPathTest) {
+            $GitDescribe = git describe --tags --abbrev=0 2>$null
+            if ($LASTEXITCODE -eq 0 -and $GitDescribe -ne "") {
+                $Version = $GitDescribe
+                Write-Host "Using version from git tag: $Version" -ForegroundColor Green
+            } else {
+                Write-Host "git describe failed or no tags found." -ForegroundColor Yellow
+            }
+        } else {
+            Write-Host "git command not found." -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host "Git command failed or no tags found, cannot determine version from git. Error: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
 }
 
+if ($Version -eq "") {
+    $Version = "v0.1.0" # Fallback version
+    Write-Host "Could not determine version automatically. Using fallback: $Version" -ForegroundColor Yellow
+}
 
-Write-Host "Building $AppName version $Version for Windows..." -ForegroundColor Cyan
+$VersionNoV = $Version.TrimStart('v') # Version without 'v' prefix
+
+Write-Host "Building $AppName version $Version (package version $VersionNoV) for Windows..." -ForegroundColor Cyan
 
 # Ensure Rust is installed
 try {
@@ -32,35 +65,62 @@ try {
 }
 
 # Build the release version
-Write-Host "Building release version..." -ForegroundColor Cyan
+Write-Host "Building release version of $AppName..." -ForegroundColor Cyan
 cargo build --release
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "Build failed!" -ForegroundColor Red
+    Write-Host "Cargo build failed!" -ForegroundColor Red
+    exit 1
+}
+Write-Host "$AppName built successfully." -ForegroundColor Green
+
+# Create output directory for packaging
+$PackageDirName = "$AppName-$Version-windows-pkg"
+$PackagePath = Join-Path -Path "target" -ChildPath $PackageDirName
+
+if (Test-Path $PackagePath) {
+    Write-Host "Removing existing package directory: $PackagePath" -ForegroundColor Yellow
+    Remove-Item $PackagePath -Recurse -Force
+}
+New-Item -ItemType Directory -Path $PackagePath -Force | Out-Null
+Write-Host "Created package directory: $PackagePath" -ForegroundColor Green
+
+# Files to include in the ZIP
+$SourceExe = "target\\release\\$AppName.exe"
+$SourceInstallScript = "install.ps1"
+$SourceReadme = "README.md"
+$SourceLicense = "LICENSE"
+
+# Copy files to package directory
+Write-Host "Copying files to package directory..." -ForegroundColor Cyan
+Copy-Item $SourceExe -Destination $PackagePath
+Copy-Item $SourceInstallScript -Destination $PackagePath
+Copy-Item $SourceReadme -Destination $PackagePath
+Copy-Item $SourceLicense -Destination $PackagePath
+
+Write-Host "Files copied:"
+Get-ChildItem -Path $PackagePath | ForEach-Object { Write-Host "  $($_.Name)" }
+
+# Create a ZIP archive
+$ZipFileName = "$AppName-$Version-windows-amd64.zip"
+$ZipPath = Join-Path -Path "target" -ChildPath $ZipFileName
+
+if (Test-Path $ZipPath) {
+    Write-Host "Removing existing ZIP file: $ZipPath" -ForegroundColor Yellow
+    Remove-Item $ZipPath -Force
+}
+
+Write-Host "Creating ZIP archive: $ZipPath ..." -ForegroundColor Cyan
+Compress-Archive -Path "$PackagePath\\*" -DestinationPath $ZipPath -Force
+
+if (Test-Path $ZipPath) {
+    Write-Host "Windows ZIP package created successfully: $ZipPath" -ForegroundColor Green
+} else {
+    Write-Host "Error: ZIP package not created at $ZipPath" -ForegroundColor Red
     exit 1
 }
 
-# Create output directory for packaging
-$OutputDir = "target\windows-package"
-if (Test-Path $OutputDir) {
-    Remove-Item $OutputDir -Recurse -Force
-}
-New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
+# Clean up intermediate package directory
+Write-Host "Cleaning up intermediate package directory: $PackagePath" -ForegroundColor Cyan
+Remove-Item $PackagePath -Recurse -Force
 
-# Copy binary and documentation
-Write-Host "Copying files to package directory..." -ForegroundColor Cyan
-Copy-Item "target\release\git_switch.exe" $OutputDir
-if (Test-Path "README.md") {
-    Copy-Item "README.md" $OutputDir
-}
-if (Test-Path "LICENSE") {
-    Copy-Item "LICENSE" $OutputDir
-}
-
-# Create ZIP package
-$ZipFile = "target\$AppName-$Version-windows.zip"
-Write-Host "Creating ZIP package: $ZipFile" -ForegroundColor Cyan
-Compress-Archive -Path "$OutputDir\*" -DestinationPath $ZipFile -Force
-
-Write-Host "Package created successfully: $ZipFile" -ForegroundColor Green
-Write-Host "You can distribute this ZIP file to Windows users."
-Write-Host "To install, they can extract the ZIP and add the folder to their system PATH."
+Write-Host "Build process finished for Windows."

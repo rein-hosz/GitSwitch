@@ -56,9 +56,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Run Linux build script
+      - name: Build release binary (Linux)
+        run: cargo build --release --verbose
+        env:
+          CARGO_TERM_COLOR: always
+
+      - name: Run Linux packaging script (build.sh for deb, rpm, tar.gz)
         run: |
           echo "Running build.sh --all --version ${{ steps.get_version.outputs.VERSION_NO_V }}" # Pass VERSION_NO_V to build.sh
+          # Ensure build.sh is executable
+          chmod +x ./build.sh
           ./build.sh --all --version ${{ steps.get_version.outputs.VERSION_NO_V }}
         env:
           CARGO_TERM_COLOR: always

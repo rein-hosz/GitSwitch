@@ -48,11 +48,19 @@ jobs:
         env:
           CARGO_TERM_COLOR: always
 
+      - name: List target/release directory (for debugging)
+        run: |
+          echo "Listing target/release contents:"
+          ls -AlR target/release || echo "target/release directory not found or is empty."
+          echo "Listing target directory (root) contents:"
+          ls -Al target || echo "target directory not found or is empty."
+
       - name: Upload artifact for release job
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_bundle_name }}
           path: target/release/${{ matrix.binary_name }}
+          if-no-files-found: error # Changed from warn to error
 
   create_release:
     name: Create GitHub Release

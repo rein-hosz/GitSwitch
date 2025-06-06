@@ -1,0 +1,111 @@
+name: Build and Release git-switch
+
+on:
+  push:
+    tags:
+      - "v*.*.*" # Trigger on version tags like v0.1.0, v1.0.0, etc.
+
+jobs:
+  build:
+    name: Build for ${{ matrix.os_name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            os_name: Linux
+            binary_name: git-switch
+            artifact_bundle_name: build-linux
+            release_asset_name: git-switch-linux-amd64
+          - os: windows-latest
+            os_name: Windows
+            binary_name: git-switch.exe
+            artifact_bundle_name: build-windows
+            release_asset_name: git-switch-windows-amd64.exe
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build binary
+        run: cargo build --verbose --release
+        env:
+          CARGO_TERM_COLOR: always
+
+      - name: Upload artifact for release job
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_bundle_name }}
+          path: target/release/${{ matrix.binary_name }}
+
+  create_release:
+    name: Create GitHub Release
+    needs: build # Run after all build jobs are successful
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to create releases and upload assets
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4 # Ensures tag information is available
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/ # Downloads all artifacts into subdirectories named after artifact_bundle_name
+
+      - name: List downloaded artifacts (for debugging)
+        run: |
+          echo "Downloaded artifacts structure:"
+          ls -R artifacts/
+          echo "Expected structure:"
+          echo "artifacts/build-linux/git-switch"
+          echo "artifacts/build-windows/git-switch.exe"
+
+      - name: Prepare release assets
+        shell: bash
+        run: |
+          mkdir -p release_assets
+          cp artifacts/build-linux/git-switch release_assets/git-switch-linux-amd64
+          cp artifacts/build-windows/git-switch.exe release_assets/git-switch-windows-amd64.exe
+          echo "Prepared release assets in release_assets/:"
+          ls release_assets/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
+          name: Release ${{ steps.get_version.outputs.VERSION }}
+          body: |
+            Automated release for git-switch version ${{ steps.get_version.outputs.VERSION }}.
+
+            Assets:
+            - Linux (amd64): `git-switch-linux-amd64`
+            - Windows (amd64): `git-switch-windows-amd64.exe`
+          draft: false
+          prerelease: false
+          files: |
+            release_assets/git-switch-linux-amd64
+            release_assets/git-switch-windows-amd64.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -195,7 +195,8 @@ foreach ($File in $FilesToInclude) {
 }
 
 # Create the ZIP file
-$ZipFileName = "$AppName-$Version.zip" # ZIP name uses AppName (git-switch)
+# $ZipFileName = "$AppName-$Version.zip" # ZIP name uses AppName (git-switch)
+$ZipFileName = "$AppName-$Version-windows-amd64.zip" # Align with GitHub Actions artifact naming
 $ZipFilePath = Join-Path $ProjectRoot "target\\release\\$ZipFileName"
 if (Test-Path $ZipFilePath) {
     Remove-Item $ZipFilePath

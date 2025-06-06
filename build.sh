@@ -277,43 +277,21 @@ else
 fi
 
 if [ $BUILD_TARBALL -eq 1 ]; then
-  VERSION=$(grep '^version =' Cargo.toml | cut -d '"' -f2 || echo "0.1.0")
-  if [ -e "target/git-switch-${VERSION}.tar.gz" ]; then
+  # Use VERSION_NO_V for consistency, as Cargo.toml was updated to this
+  if [ -e "target/$APP_NAME-v${VERSION_NO_V}.tar.gz" ] || [ -e "target/$APP_NAME-${VERSION_NO_V}.tar.gz" ]; then # Check with and without 'v'
     echo "✅ Tarball package"
   else
-    echo "❌ Tarball package (build failed)"
+    echo "❌ Tarball package (build failed - expected target/$APP_NAME-v${VERSION_NO_V}.tar.gz or target/$APP_NAME-${VERSION_NO_V}.tar.gz)"
   fi
 else
   echo "❌ Tarball package (not built)"
 fi
 
-# For DEB and RPM, the versioning is typically handled by cargo-deb and cargo-generate-rpm
-# Ensure Cargo.toml version is updated if these tools rely on it directly and you want the tag version to be authoritative.
-# For now, we assume these tools pick up the version from Cargo.toml or their own config.
-# If specific versioning for .deb/.rpm filenames is needed from THIS script's $VERSION,
-# you'd need to adjust how cargo-deb/cargo-generate-rpm are called or how their output is named.
-
-if [ $BUILD_DEB -eq 1 ]; then
-  echo "Building Debian package (using cargo-deb, version from Cargo.toml)..."
-  # Update Cargo.toml version to $VERSION_NO_V before building .deb if needed
-  # sed -i "s/^version = .*/version = \"$VERSION_NO_V\"/" Cargo.toml
-  cargo deb --target-dir target # cargo-deb typically uses version from Cargo.toml
-  # If you need to rename the output based on $VERSION:
-  # mv target/debian/git-switch_*_$VERSION_NO_V*.deb target/git-switch-$VERSION-amd64.deb
-  echo "Debian package created in target/debian/"
-fi
-
-if [ $BUILD_RPM -eq 1 ]; then
-  echo "Building RPM package (using cargo-generate-rpm, version from Cargo.toml)..."
-  # Update Cargo.toml version to $VERSION_NO_V before building .rpm if needed
-  # sed -i "s/^version = .*/version = \"$VERSION_NO_V\"/" Cargo.toml
-  cargo generate-rpm --target-dir target # cargo-generate-rpm also uses Cargo.toml version
-  # If you need to rename the output based on $VERSION:
-  # mv target/rpm/git-switch-*$VERSION_NO_V*.rpm target/git-switch-$VERSION-x86_64.rpm
-  echo "RPM package created in target/rpm/"
-fi
-
 echo "Build process finished for version $VERSION."
 
 # Restore Cargo.toml if it was changed (optional, depends on strategy)
-# git checkout -- Cargo.toml
+# If Cargo.toml.bak exists, it means we modified Cargo.toml
+if [ -f Cargo.toml.bak ]; then
+  echo "Restoring original Cargo.toml..."
+  mv Cargo.toml.bak Cargo.toml
+fi

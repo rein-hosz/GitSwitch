@@ -87,7 +87,7 @@ For manual installation on Windows:
 
 3. Copy the binary to a location in your PATH:
    ```powershell
-   copy target\release\git_switch.exe C:\path\to\bin\git-switch.exe
+   copy target\release\git-switch.exe C:\path\to\bin\git-switch.exe
    ```
 
 #### Building packages

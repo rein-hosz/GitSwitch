@@ -146,7 +146,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-artifacts-${{ steps.get_version.outputs.VERSION }}
-          path: target/git-switch-${{ steps.get_version.outputs.VERSION }}-windows-amd64.zip
+          path: target/release/git-switch-${{ steps.get_version.outputs.VERSION }}-windows-amd64.zip
           if-no-files-found: error
 
   create_release:

@@ -6,17 +6,17 @@ BUILD_DEB=0
 BUILD_RPM=0
 BUILD_TARBALL=0
 BUILD_ALL=0
-VERSION="" # Added version variable
+VERSION_ARG="" # Store the version passed via --version
 
 # Function to show usage
 show_usage() {
-  echo "Usage: $0 [options] [--version <VERSION_STRING>]" # Updated usage
+  echo "Usage: $0 [options] [--version <VERSION_STRING>]"
   echo "Options:"
   echo "  --all      Build all package types (deb, rpm, tarball)"
   echo "  --deb      Build Debian package"
   echo "  --rpm      Build RPM package"
   echo "  --tarball  Build tar.gz package"
-  echo "  --version  Specify the version string (e.g., v0.1.0). Defaults to git describe or Cargo.toml." # Added version option
+  echo "  --version  Specify the version string (e.g., v0.1.0). Defaults to git describe or Cargo.toml."
   echo "  --help     Show this help message"
   echo ""
   echo "Example: $0 --deb --rpm --version v0.2.0"
@@ -39,7 +39,7 @@ while [ "$1" != "" ]; do
                    show_usage
                    exit 1
                  fi
-                 VERSION="$1" # Set version
+                 VERSION_ARG="$1" # Set version argument
                  ;;
     --help )     show_usage
                  exit
@@ -57,36 +57,74 @@ if [ $BUILD_ALL -eq 1 ]; then
   BUILD_TARBALL=1
 fi
 
-# Determine version if not provided
-if [ -z "$VERSION" ]; then
+# Determine final version
+VERSION=""
+if [ -n "$VERSION_ARG" ]; then
+  VERSION="$VERSION_ARG"
+  echo "Using provided version: $VERSION"
+else
+  echo "Attempting to determine version automatically..."
   if command -v git &> /dev/null && git rev-parse --is-inside-work-tree &> /dev/null; then
     VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+    if [ -n "$VERSION" ]; then
+      echo "Using version from git tag: $VERSION"
+    fi
   fi
   if [ -z "$VERSION" ] && [ -f Cargo.toml ]; then
-    VERSION="v$(grep \'^version\' Cargo.toml | sed \'s/version = \"\\(.*\\)\"/\\1/\')"
-  elif [ -z "$VERSION" ]; then
+    # Try to get version from Cargo.toml, ensure it starts with 'v'
+    CARGO_VERSION_RAW=$(grep '^[package]' -A 5 Cargo.toml | grep '^version *=' | sed 's/version *= *"\\([^"]*\\)"$/\\1/' || grep '^version *=' Cargo.toml | sed 's/version *= *"\\([^"]*\\)"$/\\1/')
+    if [ -n "$CARGO_VERSION_RAW" ]; then
+      if [[ "$CARGO_VERSION_RAW" == v* ]]; then
+        VERSION="$CARGO_VERSION_RAW"
+      else
+        VERSION="v$CARGO_VERSION_RAW"
+      fi
+      echo "Using version from Cargo.toml: $VERSION (raw: $CARGO_VERSION_RAW)"
+    fi
+  fi
+  if [ -z "$VERSION" ]; then
     VERSION="v0.1.0" # Fallback if no other version info found
     echo "Warning: Could not determine version automatically. Using fallback: $VERSION"
   fi
 fi
 
-echo "Building with version: $VERSION"
+echo "Final version for build: $VERSION"
 APP_NAME="git-switch"
-# Strip 'v' prefix for some packaging formats if it exists
-VERSION_NO_V=${VERSION#v}
+VERSION_NO_V=${VERSION#v} # Version without 'v' prefix, e.g., 0.1.0
 
+# Update Cargo.toml with the determined version (without 'v')
+if [ -f Cargo.toml ]; then
+  echo "Updating Cargo.toml to version: $VERSION_NO_V"
+  # Create a backup, then replace.
+  cp Cargo.toml Cargo.toml.bak
+  # sed pattern: match 'version = "..."', capture content, replace with new version.
+  # Works for version = "0.1.0"
+  sed -E "s/^(version\s*=\s*\").*(\".*)$/\\1$VERSION_NO_V\\2/" Cargo.toml.bak > Cargo.toml
+  if [ $? -ne 0 ]; then
+    echo "Error: Failed to update Cargo.toml version."
+    mv Cargo.toml.bak Cargo.toml # Restore backup
+    exit 1
+  fi
+  rm Cargo.toml.bak
+  echo "Cargo.toml updated successfully. Verifying:"
+  grep "^version = " Cargo.toml
+else
+  echo "Error: Cargo.toml not found. Cannot update version."
+  exit 1
+fi
 
 # Ensure target directory exists
 mkdir -p target
 
-# Build the release binary first
-echo "Building release binary..."
+# Build the release binary first (will use updated Cargo.toml)
+echo "Building release binary for $APP_NAME version $VERSION_NO_V..."
 cargo build --release
 if [ $? -ne 0 ]; then
   echo "Cargo build failed!"
   exit 1
 fi
 BINARY_PATH="target/release/$APP_NAME"
+echo "$APP_NAME binary built successfully at $BINARY_PATH"
 
 # Create Debian package if requested
 if [ $BUILD_DEB -eq 1 ]; then
@@ -261,7 +299,7 @@ if [ $BUILD_RPM -eq 1 ]; then
   echo "RPM package created in target/rpm/"
 fi
 
-echo "Build process finished."
+echo "Build process finished for version $VERSION."
 
 # Restore Cargo.toml if it was changed (optional, depends on strategy)
 # git checkout -- Cargo.toml

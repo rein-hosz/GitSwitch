@@ -1,16 +1,16 @@
 #Requires -Version 5.0
 
+# Parameter for version override
+Param(
+    [string]$BuildVersion = ""
+)
+
 # Stop on any error
 $ErrorActionPreference = "Stop"
 
 # Configuration
 $AppName = "git-switch"
 $Version = "" # Initialize Version variable
-
-# Parameter for version override
-Param(
-    [string]$BuildVersion = ""
-)
 
 # Determine version
 if ($BuildVersion -ne "") {

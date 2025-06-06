@@ -151,36 +151,42 @@ fi
 if [ $BUILD_RPM -eq 1 ]; then
   echo "Creating RPM package manually..."
 
-  # Get version from Cargo.toml
-  VERSION=$(grep '^version =' Cargo.toml | cut -d '"' -f2 || echo "0.1.0")
+  # Get version from Cargo.toml (should be already updated by this script)
+  # VERSION_NO_V is already defined and is the numeric version string
 
   # Create RPM build directory structure
   mkdir -p target/rpm-build/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 
-  # Create a tarball for rpmbuild
-  mkdir -p target/rpm-build/SOURCES/git-switch-${VERSION}
-  mkdir -p target/rpm-build/SOURCES/git-switch-${VERSION}/usr/bin
-  mkdir -p target/rpm-build/SOURCES/git-switch-${VERSION}/usr/share/doc/git-switch
-  cp target/release/git_switch target/rpm-build/SOURCES/git-switch-${VERSION}/usr/bin/git-switch
-  cp README.md target/rpm-build/SOURCES/git-switch-${VERSION}/usr/share/doc/git-switch/ 2>/dev/null || :
-  cp LICENSE target/rpm-build/SOURCES/git-switch-${VERSION}/usr/share/doc/git-switch/ 2>/dev/null || :
+  # Create a source tarball for rpmbuild
+  RPM_SOURCE_DIR="target/rpm-build/SOURCES/$APP_NAME-${VERSION_NO_V}"
+  mkdir -p "$RPM_SOURCE_DIR/usr/bin"
+  mkdir -p "$RPM_SOURCE_DIR/usr/share/doc/$APP_NAME"
+  
+  echo "Copying $BINARY_PATH to $RPM_SOURCE_DIR/usr/bin/$APP_NAME"
+  cp "$BINARY_PATH" "$RPM_SOURCE_DIR/usr/bin/$APP_NAME"
+  
+  echo "Copying README.md to $RPM_SOURCE_DIR/usr/share/doc/$APP_NAME/"
+  cp README.md "$RPM_SOURCE_DIR/usr/share/doc/$APP_NAME/" 2>/dev/null || :
+  
+  echo "Copying LICENSE to $RPM_SOURCE_DIR/usr/share/doc/$APP_NAME/"
+  cp LICENSE "$RPM_SOURCE_DIR/usr/share/doc/$APP_NAME/" 2>/dev/null || :
 
-  # Create tarball
-  (cd target/rpm-build/SOURCES && tar -czf git-switch-${VERSION}.tar.gz git-switch-${VERSION})
+  # Create tarball for RPM sources
+  (cd target/rpm-build/SOURCES && tar -czf "$APP_NAME-${VERSION_NO_V}.tar.gz" "$APP_NAME-${VERSION_NO_V}")
 
   # Create spec file
-  cat > target/rpm-build/SPECS/git-switch.spec << EOF
+  cat > target/rpm-build/SPECS/$APP_NAME.spec << EOF
 %global debug_package %{nil}
 %global _enable_debug_package 0
 %global __os_install_post /usr/lib/rpm/brp-compress %{nil}
 
-Name:           git-switch
-Version:        ${VERSION}
+Name:           $APP_NAME
+Version:        ${VERSION_NO_V}
 Release:        1%{?dist}
 Summary:        CLI tool to switch between multiple Git accounts
 
 License:        MIT
-URL:            https://github.com/rein-hosz/GitSwitch
+URL:            https://github.com/rein-hosz/GitSwitch # Replace with your actual repo URL if different
 Source0:        %{name}-%{version}.tar.gz
 
 Requires:       git
@@ -191,27 +197,27 @@ git-switch allows users to manage and switch between multiple Git accounts.
 It handles SSH key management and Git configuration updates automatically.
 
 %prep
-%setup -q
+%setup -q -n $APP_NAME-%{version}
 
 %install
 mkdir -p %{buildroot}/usr/bin
 mkdir -p %{buildroot}/usr/share/doc/%{name}
-cp -p usr/bin/git-switch %{buildroot}/usr/bin/
-cp -pr usr/share/doc/git-switch/* %{buildroot}/usr/share/doc/%{name}/ 2>/dev/null || :
+cp -p usr/bin/$APP_NAME %{buildroot}/usr/bin/
+cp -pr usr/share/doc/$APP_NAME/* %{buildroot}/usr/share/doc/%{name}/ 2>/dev/null || :
 
 %files
-%attr(755, root, root) /usr/bin/git-switch
+%attr(755, root, root) /usr/bin/$APP_NAME
 %doc /usr/share/doc/%{name}/*
 
 %changelog
-* $(date +"%a %b %d %Y") Ren Hoshizora <blackswordman@gmail.com> - ${VERSION}-1
+* $(date +"%a %b %d %Y") Ren Hoshizora <blackswordman@gmail.com> - ${VERSION_NO_V}-1
 - Initial RPM release
 EOF
 
   # Build RPM
   if command -v rpmbuild &> /dev/null; then
     echo "Running rpmbuild..."
-    (cd target/rpm-build && rpmbuild --define "_topdir $(pwd)" --define "_build_id_links none" -ba SPECS/git-switch.spec)
+    (cd target/rpm-build && rpmbuild --define "_topdir $(pwd)" --define "_build_id_links none" -ba SPECS/$APP_NAME.spec)
 
     # Move RPM to target directory
     mkdir -p target/rpm

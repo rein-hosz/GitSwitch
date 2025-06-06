@@ -92,7 +92,8 @@ if (Test-Path $CargoTomlPath) {
             $CargoReadOutput = cargo read-manifest --manifest-path $CargoTomlPath 2>&1
             if ($LASTEXITCODE -eq 0) {
                 Write-Host "Cargo.toml successfully parsed by 'cargo read-manifest'."
-                Get-Content -Path $CargoTomlPath | Select-String -Pattern "^version\\s*=\\s*\\"$([regex]::Escape($VersionNoV))\\""
+                # Correctly escape quotes in the pattern for Select-String
+                Get-Content -Path $CargoTomlPath | Select-String -Pattern "^version\s*=\s*\`"$([regex]::Escape($VersionNoV))\`"" -Quiet
             } else {
                 Write-Host "Error: 'cargo read-manifest' failed after updating Cargo.toml. Content might be invalid." -ForegroundColor Red
                 Write-Host "Cargo read-manifest output: $CargoReadOutput"

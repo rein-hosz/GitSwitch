@@ -1,5 +1,5 @@
 [package]
-name = "git_switch"
+name = "git-switch"
 version = "0.1.0"
 edition = "2024"
 authors = ["Ren Hoshizora <blackswordman@gmail.com>"]

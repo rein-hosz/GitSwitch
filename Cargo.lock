@@ -149,7 +149,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "git_switch"
+name = "git-switch"
 version = "0.1.0"
 dependencies = [
  "anyhow",

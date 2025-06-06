@@ -129,14 +129,22 @@ echo "$APP_NAME binary built successfully at $BINARY_PATH"
 # Create Debian package if requested
 if [ $BUILD_DEB -eq 1 ]; then
   echo "Installing cargo-deb if needed..."
-  cargo install cargo-deb || true
+  cargo install cargo-deb --locked || true # Added --locked for potentially faster/more reliable installs in CI
 
   echo "Creating Debian package..."
-  cargo deb --target-dir target
+  cargo deb # Removed --target-dir target
 
-  # If you need to rename the output based on $VERSION:
-  # mv target/debian/git-switch_*_$VERSION_NO_V*.deb target/git-switch-$VERSION-amd64.deb
-  echo "Debian package created in target/debian/"
+  # The output is typically in target/debian/
+  # Example: target/debian/git-switch_0.1.1-1_amd64.deb (adjust versioning as needed for exact name)
+  echo "Debian package should be in target/debian/"
+  # Find the .deb file (name might vary slightly with architecture or revision)
+  DEB_FILE=$(find target/debian -name "${APP_NAME}_*${VERSION_NO_V}*.deb" -print -quit)
+  if [ -n "$DEB_FILE" ]; then
+    echo "Debian package created: $DEB_FILE"
+  else
+    echo "Warning: Could not find the created .deb file in target/debian/ for version $VERSION_NO_V. Listing contents:"
+    ls -R target/debian/
+  fi
 fi
 
 # Create RPM package if requested

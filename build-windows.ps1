@@ -79,15 +79,28 @@ if (Test-Path $CargoTomlPath) {
     Copy-Item -Path $CargoTomlPath -Destination $CargoTomlBackupPath -Force
     
     $Pattern = '(?m)^(version\s*=\s*")[^"]*(")' # Matches version = "..."
-    $Replacement = "`$1$($VersionNoV)`$2"
+    # Corrected replacement string using ${1} and ${2} for backreferences
+    $Replacement = "`${1}$($VersionNoV)`${2}" 
 
-    if ($OriginalCargoTomlContent -match $Pattern) {
+    if ($OriginalCargoTomlContent -match $Pattern) { # -match is used here just to confirm pattern finds something, $Matches is not used for -replace
         $UpdatedCargoTomlContent = $OriginalCargoTomlContent -replace $Pattern, $Replacement
         if ($UpdatedCargoTomlContent -ne $OriginalCargoTomlContent) {
             Set-Content -Path $CargoTomlPath -Value $UpdatedCargoTomlContent -Encoding UTF8
             Write-Host "Cargo.toml version updated to $VersionNoV."
             Write-Host "Verifying update:"
-            Get-Content -Path $CargoTomlPath | Select-String -Pattern "^version\s*=\s*""$([regex]::Escape($VersionNoV))""" -Quiet
+            # Attempt to parse the Cargo.toml with cargo itself to see if it's valid
+            $CargoReadOutput = cargo read-manifest --manifest-path $CargoTomlPath 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "Cargo.toml successfully parsed by 'cargo read-manifest'."
+                Get-Content -Path $CargoTomlPath | Select-String -Pattern "^version\\s*=\\s*\\"$([regex]::Escape($VersionNoV))\\""
+            } else {
+                Write-Host "Error: 'cargo read-manifest' failed after updating Cargo.toml. Content might be invalid." -ForegroundColor Red
+                Write-Host "Cargo read-manifest output: $CargoReadOutput"
+                Write-Host "Reverting Cargo.toml from backup..."
+                Move-Item -Path $CargoTomlBackupPath -Destination $CargoTomlPath -Force -ErrorAction SilentlyContinue
+                Write-Host "Cargo.toml restored."
+                exit 1 # Exit because the Cargo.toml modification failed
+            }
         } else {
             Write-Host "Cargo.toml version is already $VersionNoV or pattern did not result in a change."
             Remove-Item -Path $CargoTomlBackupPath -ErrorAction SilentlyContinue

@@ -29,7 +29,7 @@ section = "utility"
 priority = "optional"
 assets = [
     [
-        "target/release/git_switch",
+        "target/release/git-switch",
         "usr/bin/git-switch",
         "755",
     ],
@@ -46,5 +46,5 @@ license = "MIT"
 requires = ["git", "openssh"]
 
 [package.metadata.rpm.files]
-"target/release/git_switch" = { path = "/usr/bin/git-switch", mode = "755" }
+"target/release/git-switch" = { path = "/usr/bin/git-switch", mode = "755" }
 "README.md" = { path = "/usr/share/doc/git-switch/README.md", mode = "644" }

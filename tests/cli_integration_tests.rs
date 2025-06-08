@@ -341,7 +341,7 @@ fn test_auth_test_with_specific_account() -> Result<(), Box<dyn std::error::Erro
 
     let mut cmd_auth = get_git_switch_command(temp_home_path)?; 
     cmd_auth.args(&["auth", "test"]); 
-    cmd_auth.write_stdin("1\\n");
+    cmd_auth.write_stdin("1\n"); // Corrected: Use \n for newline
 
     cmd_auth.assert()
         .success() 
@@ -378,7 +378,7 @@ fn test_remove_account() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut cmd_remove = get_git_switch_command(temp_home_path)?; 
     cmd_remove.args(&["remove", "removeacc"]);
-    cmd_remove.write_stdin("y\\ny\\n"); 
+    cmd_remove.write_stdin("y\ny\n"); // Corrected: Use \n for newlines
 
     cmd_remove.assert()
         .success()

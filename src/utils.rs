@@ -131,3 +131,23 @@ pub fn run_command_with_output(
     }
     Ok(output)
 }
+
+/// Runs a command and returns its output (stdout, stderr, status), including stderr even on success.
+pub fn run_command_with_full_output(
+    command_str: &str,
+    args: &[&str],
+    current_dir: Option<&Path>,
+) -> Result<Output> {
+    let mut cmd = Command::new(command_str);
+    cmd.args(args);
+    if let Some(dir) = current_dir {
+        cmd.current_dir(dir);
+    }
+
+    cmd.output().map_err(|e| {
+        GitSwitchError::CommandExecution {
+            command: command_str.to_string(),
+            message: format!("Failed to spawn command for full output: {}", e),
+        }
+    })
+}

@@ -70,7 +70,8 @@ pub fn update_ssh_config(account_name: &str, identity_file_path_str: &str) -> Re
     let config_path = get_ssh_config_file_path()?;
     ensure_parent_dir_exists(&config_path)?;
 
-    let host_alias = format!("github-{}", account_name.replace(" ", "_").to_lowercase());
+    // Use a more specific host alias to avoid potential conflicts and ensure clarity
+    let host_alias = format!("github.com-{}", account_name.replace(" ", "_").to_lowercase());
     let identity_file_display = identity_file_path.to_str().unwrap_or("INVALID_PATH");
 
     let config_entry = format!(
@@ -140,7 +141,8 @@ pub fn remove_ssh_config_entry(account_name: &str) -> Result<()> {
     let original_content = read_file_content(&config_path)?;
     let mut new_content_lines = Vec::new();
     let mut in_matching_block = false;
-    let host_marker = format!("Host github-{}", account_name.replace(" ", "_").to_lowercase());
+    // Ensure the host_marker matches the one used in update_ssh_config
+    let host_marker = format!("Host github.com-{}", account_name.replace(" ", "_").to_lowercase());
     let comment_marker = format!("# {} GitHub Account (git-switch managed)", account_name);
 
     for line in original_content.lines() {

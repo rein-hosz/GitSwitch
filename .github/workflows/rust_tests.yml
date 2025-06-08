@@ -52,11 +52,8 @@ jobs:
           $sshKeygenCmd = Get-Command ssh-keygen -ErrorAction SilentlyContinue
           if ($null -ne $sshKeygenCmd) {
             Write-Host "ssh-keygen found at: $($sshKeygenCmd.Source)"
-            # As a final check, try to get version information, but don't fail the step if this specific command fails
-            # as long as Get-Command found it. Some ssh-keygen versions might not support -V as expected.
-            ssh-keygen -V 2>&1 | Write-Host
           } else {
-            Write-Error "ssh-keygen not found in PATH. Please ensure Git for Windows is installed and its usr/bin directory is in PATH."
+            Write-Error "ssh-keygen not found in PATH. Please ensure Git for Windows is installed and its usr/bin directory is in PATH, or that OpenSSH is available via System32."
             exit 1
           }
         shell: pwsh

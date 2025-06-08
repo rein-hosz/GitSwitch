@@ -1,4 +1,3 @@
-// filepath: /home/renhoshizora/Project/git_switch/src/error.rs
 use thiserror::Error;
 
 /// Custom error types for git-switch
@@ -37,10 +36,14 @@ pub enum GitSwitchError {
     #[error("Command execution failed: {command} - {message}")]
     CommandExecution { command: String, message: String },
 
-    #[error("Not in a Git repository. This command requires being run from within a Git repository.")]
+    #[error(
+        "Not in a Git repository. This command requires being run from within a Git repository."
+    )]
     NotInGitRepository,
 
-    #[error("Git command '{command}' failed with status: {status}\\nstdout: {stdout}\\nstderr: {stderr}")]
+    #[error(
+        "Git command '{command}' failed with status: {status}\\nstdout: {stdout}\\nstderr: {stderr}"
+    )]
     GitCommandFailed {
         command: String,
         status: std::process::ExitStatus,

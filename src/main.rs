@@ -5,13 +5,21 @@ mod ssh;
 mod git;
 mod utils;
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand}; // Added Subcommand
 use crate::error::Result;
 use std::path::PathBuf;
+use crate::error::GitSwitchError; // Import GitSwitchError
+use std::process::exit; // Import exit
 
 /// Represents the command-line interface for git-switch.
 #[derive(Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
+#[clap(name = "git-switch",
+    author,
+    version = env!("APP_LONG_VERSION"), // This will be used by -V
+    long_version = env!("APP_VERSION"),  // This will be used by --version
+    about,
+    long_about = None
+)]
 struct Cli {
     #[clap(subcommand)]
     command: Commands,
@@ -80,39 +88,48 @@ enum AuthCommands {
 }
 
 /// Main function to run the git-switch application.
-fn main() {
-    if let Err(e) = run() {
-        eprintln!("❌ Error: {}", e);
-        std::process::exit(e.exit_code());
+fn main() { // Changed return type
+    if let Err(e) = run_cli() {
+        eprintln!("Error: {}", e); // Print the error to stderr
+
+        // Attempt to downcast anyhow::Error to GitSwitchError
+        if let Some(git_switch_error) = e.downcast_ref::<GitSwitchError>() {
+            exit(git_switch_error.exit_code());
+        } else {
+            // If it's not a GitSwitchError, exit with a generic code
+            exit(1);
+        }
     }
 }
 
-fn run() -> Result<()> {
-    let cli = Cli::try_parse().map_err(error::GitSwitchError::Clap)?;
+/// Helper function to contain the main CLI logic.
+fn run_cli() -> Result<(), anyhow::Error> { // Original main logic moved here
+    let cli = Cli::parse();
     let mut config = config::load_config()?;
 
     match cli.command {
         Commands::Add { name, username, email, ssh_key_path } => {
-            commands::add_account(&mut config, &name, &username, &email, ssh_key_path)
+            commands::add_account(&mut config, &name, &username, &email, ssh_key_path)?;
         }
-        Commands::List => commands::list_accounts(&config),
-        Commands::Use { name } => commands::use_account_globally(&config, &name),
+        Commands::List => commands::list_accounts(&config)?,
+        Commands::Use { name } => commands::use_account_globally(&config, &name)?,
         Commands::Remove { name, no_prompt } => {
-            commands::remove_account(&mut config, &name, no_prompt)
+            commands::remove_account(&mut config, &name, no_prompt)?;
         }
         Commands::Account { name } => {
-            commands::handle_account_subcommand(&config, &name)
+            commands::handle_account_subcommand(&config, &name)?;
         }
         Commands::Remote { https, ssh } => {
-            commands::handle_remote_subcommand(https, ssh)
+            commands::handle_remote_subcommand(https, ssh)?;
         }
         Commands::Whoami => {
-            commands::handle_whoami_subcommand(&config)
+            commands::handle_whoami_subcommand(&config)?;
         }
         Commands::Auth(auth_opts) => match auth_opts.command {
             AuthCommands::Test => {
-                commands::handle_auth_test_subcommand(&config)
+                commands::handle_auth_test_subcommand(&config)?;
             }
         },
     }
+    Ok(())
 }

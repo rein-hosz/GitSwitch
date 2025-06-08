@@ -1,10 +1,11 @@
 [package]
 name = "git-switch"
-version = "0.1.0"
+version = "0.1.0" # Restored base version. Actual version for CLI will come from build.rs if git repo.
 edition = "2024"
 authors = ["Ren Hoshizora <blackswordman@gmail.com>"]
 description = "CLI tool to switch between multiple Git accounts"
 license = "MIT"
+build = "build.rs"
 
 [dependencies]
 shellexpand = "3.1"

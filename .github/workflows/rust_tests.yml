@@ -2,12 +2,24 @@ name: Rust Tests
 
 on:
   push:
+    branches: ["main"]
     paths:
       - "src/**"
       - "tests/**"
       - "Cargo.toml"
       - "Cargo.lock"
-      - ".github/workflows/**" # Add this line to trigger on workflow changes
+      - ".github/workflows/**" # Trigger on workflow changes as well
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/**"
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
   test:
@@ -18,26 +30,52 @@ jobs:
         os: [ubuntu-latest, windows-latest]
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          override: true
 
-      - name: Cache Cargo dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+      - name: Ensure ssh-keygen is available (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          # Git for Windows includes ssh-keygen. Ensure its directory is in PATH.
+          # The default location is "C:\Program Files\Git\usr\bin"
+          echo "C:\Program Files\Git\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          # Verify ssh-keygen is found
+          ssh-keygen -V
+        shell: pwsh
 
       - name: Run tests
-        run: cargo test
+        run: cargo test --verbose
+
+      - name: Build release binary (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cargo build --release
+          mkdir -p target/tar
+          tar -czvf target/tar/git-switch-${{ github.sha }}-${{ matrix.os }}.tar.gz -C target/release git-switch
+
+      - name: Build release binary (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cargo build --release
+          mkdir -p target/zip
+          Compress-Archive -Path target/release/git-switch.exe -DestinationPath target/zip/git-switch-${{ github.sha }}-${{ matrix.os }}.zip
+        shell: pwsh
+
+      - name: Upload Artifacts (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: git-switch-linux-amd64
+          path: target/tar/git-switch-*.tar.gz
+
+      - name: Upload Artifacts (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: git-switch-windows-amd64
+          path: target/zip/git-switch-*.zip

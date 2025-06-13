@@ -4,7 +4,6 @@ use crate::ssh;
 use crate::utils;
 use crate::git;
 use crate::validation;
-use crate::analytics;
 use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;
@@ -82,7 +81,7 @@ pub fn add_account(
         name: name.to_string(),
         username: username.to_string(),
         email: email.to_string(),
-        ssh_key_path: ssh_key_path_str.clone(),
+        ssh_key_path: ssh_key_path_str,
         additional_ssh_keys: Vec::new(),
         provider: provider.or_else(|| detect_provider_from_email(email)),
         groups: Vec::new(),
@@ -239,11 +238,6 @@ pub fn use_account_globally(config: &Config, name: &str) -> Result<()> {
         println!("{} SSH key loaded", "🔑".to_string());
     }
     
-    // Record usage analytics
-    if let Err(e) = analytics::record_usage(&account.name) {
-        tracing::warn!("Failed to record usage analytics: {}", e);
-    }
-    
     println!("{} Global Git config updated", "✓".green().bold());
     Ok(())
 }
@@ -312,11 +306,6 @@ pub fn handle_account_subcommand(config: &Config, name: &str) -> Result<()> {
     if expanded_key_path.exists() {
         git::set_ssh_command(&account.ssh_key_path)?;
         println!("{} SSH configuration updated for this repository", "🔑".to_string());
-    }
-    
-    // Record repository usage analytics
-    if let Err(e) = analytics::record_repository_usage(&account.name) {
-        tracing::warn!("Failed to record repository usage analytics: {}", e);
     }
     
     println!("{} Repository configured for account '{}'", "✓".green().bold(), account.name.cyan());
@@ -395,9 +384,9 @@ pub fn handle_whoami_subcommand(config: &Config) -> Result<()> {
         
         // Try to find matching account
         if let Some(account) = config.accounts.values().find(|acc| acc.email == global_email) {
-            println!("  Account: {} {}", account.name.green(), "(matched)".dimmed());
+            println!("  Account: {} {}", account.name.green(), "(matched)".dim());
         } else {
-            println!("  Account: {} {}", "None".yellow(), "(no match found)".dimmed());
+            println!("  Account: {} {}", "None".yellow(), "(no match found)".dim());
         }
     }
     
@@ -409,9 +398,9 @@ pub fn handle_whoami_subcommand(config: &Config) -> Result<()> {
             println!("  Email: {}", local_email);
             
             if let Some(account) = config.accounts.values().find(|acc| acc.email == local_email) {
-                println!("  Account: {} {}", account.name.green(), "(matched)".dimmed());
+                println!("  Account: {} {}", account.name.green(), "(matched)".dim());
             } else {
-                println!("  Account: {} {}", "None".yellow(), "(no match found)".dimmed());
+                println!("  Account: {} {}", "None".yellow(), "(no match found)".dim());
             }
         }
         
@@ -479,7 +468,7 @@ fn test_ssh_connection(host: &str) -> Result<()> {
 // Profile management functions
 
 /// Create a new profile
-pub fn create_profile(_config: &mut Config, _name: &str, _accounts: &[String]) -> Result<()> {
+pub fn create_profile(config: &mut Config, _name: &str, _accounts: &[String]) -> Result<()> {
     // TODO: Implement profile functionality
     println!("{} Profile functionality coming soon!", "🚧".yellow());
     Ok(())

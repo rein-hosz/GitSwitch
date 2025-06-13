@@ -4,12 +4,19 @@ A command-line tool to easily manage and switch between multiple Git accounts (p
 
 ## Features
 
-- Manage multiple Git accounts with different usernames and emails
-- Automatically generate and manage SSH keys for each account
-- Easily switch between accounts with a single command
-- Update SSH configuration automatically
-- Update Git repository remote URLs
-- Display public SSH keys for adding to GitHub or other services
+- **Account Management**: Manage multiple Git accounts with different usernames and emails
+- **SSH Key Management**: Automatically generate and manage SSH keys for each account
+- **Easy Switching**: Switch between accounts with a single command for global or per-repository configuration
+- **Profile System**: Group accounts into profiles for different workflows (work, personal, projects)
+- **Repository Discovery**: Automatically discover Git repositories and suggest appropriate accounts
+- **Bulk Operations**: Apply account configurations to multiple repositories at once
+- **Authentication Testing**: Test SSH authentication for configured accounts
+- **Remote URL Management**: Switch between HTTPS and SSH remote URLs
+- **Backup & Restore**: Export and import account configurations
+- **Template Support**: Quick account creation using provider templates (GitHub, GitLab, etc.)
+- **Analytics**: Track account usage and repository statistics
+- **Shell Completions**: Generate completion scripts for Bash, Zsh, Fish, PowerShell, and Elvish
+- **Man Pages**: Generate and install man pages for comprehensive documentation
 
 ## Installation
 
@@ -251,6 +258,137 @@ git-switch auth test
 ```
 
 Attempts to test SSH authentication using the SSH key associated with the account configured for the current repository (if any, via `git-switch account <NAME>`). If no specific account is set for the repo, it may try a default SSH connection. This helps verify if your SSH key is correctly set up and added to your Git provider (e.g., GitHub, GitLab).
+
+### Advanced Features
+
+#### Profile Management
+
+Profiles allow you to group accounts for different workflows:
+
+```bash
+# Create a profile with multiple accounts
+git-switch profile create work-profile --accounts work,corporate --description "Work-related accounts" --default work
+
+# List all profiles
+git-switch profile list
+
+# Switch to a profile (applies the default account globally)
+git-switch profile use work-profile
+
+# Update a profile
+git-switch profile update work-profile --add-accounts freelance --default corporate
+
+# Remove a profile
+git-switch profile remove work-profile
+
+# Show profile statistics
+git-switch profile stats
+```
+
+#### Repository Discovery and Bulk Operations
+
+Discover Git repositories and apply account configurations in bulk:
+
+```bash
+# Discover repositories in the current directory
+git-switch repo discover . --max-depth 3
+
+# List discovered repositories with suggestions
+git-switch repo list
+
+# Apply suggested account configurations (dry run first)
+git-switch repo apply --dry-run
+
+# Apply configurations for real
+git-switch repo apply
+
+# Force apply even low-confidence suggestions
+git-switch repo apply --force
+
+# Generate a markdown report
+git-switch repo report --output repositories-report.md
+
+# Interactive configuration
+git-switch repo interactive
+```
+
+#### Backup and Restore
+
+Export and import your account configurations:
+
+```bash
+# Create a backup
+git-switch backup create --output my-accounts-backup.toml
+
+# Restore from backup
+git-switch backup restore my-accounts-backup.toml
+
+# Export accounts to JSON
+git-switch backup export accounts.json --format json
+
+# Import accounts from file
+git-switch backup import accounts.toml --merge
+```
+
+#### Template Support
+
+Create accounts quickly using provider templates:
+
+```bash
+# List available templates
+git-switch template list
+
+# Create account from GitHub template
+git-switch template use github work-github "John Doe" "john@work.com"
+```
+
+#### Analytics and Usage Tracking
+
+Track your Git account usage:
+
+```bash
+# Show usage analytics
+git-switch analytics show
+
+# Clear analytics data
+git-switch analytics clear
+```
+
+#### Repository Detection and Suggestions
+
+Get intelligent suggestions for repository configuration:
+
+```bash
+# Analyze current repository and suggest appropriate account
+git-switch detect
+```
+
+#### Shell Completions
+
+Generate completion scripts for your shell:
+
+```bash
+# Generate completions for Zsh
+git-switch completions zsh > ~/.config/git-switch/completions/_git-switch
+
+# Generate completions for Bash
+git-switch completions bash > /etc/bash_completion.d/git-switch
+
+# Generate completions for Fish
+git-switch completions fish > ~/.config/fish/completions/git-switch.fish
+```
+
+#### Man Pages
+
+Generate and install man pages:
+
+```bash
+# Generate man page to stdout
+git-switch man
+
+# Generate all man pages to directory
+git-switch man --output-dir /usr/local/share/man/man1/
+```
 
 ## How It Works
 

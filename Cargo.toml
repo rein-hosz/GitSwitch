@@ -16,6 +16,29 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
 anyhow = "1.0"
+# Security-focused dependencies
+keyring = "2.0"
+zeroize = "1.6"
+rand = "0.8"
+base64 = "0.21"
+# Better UX dependencies
+colored = "2.0"
+indicatif = "0.17"
+dialoguer = "0.11"
+# Better configuration format
+toml = "0.8"
+# Enhanced logging
+tracing = "0.1"
+tracing-subscriber = "0.3"
+# Email validation
+email_address = "0.2"
+# SSH key handling
+ssh-key = "0.6"
+# Date/time handling
+chrono = { version = "0.4", features = ["serde"] }
+# Shell completions and man pages
+clap_complete = "4.4"
+clap_mangen = "0.2"
 
 [dev-dependencies]
 assert_cmd = "2.0"

@@ -62,3 +62,139 @@ pub fn is_git_repository() -> Result<bool> {
     }
 }
 
+// Alias for backward compatibility and intuitive naming
+pub fn is_in_git_repository() -> Result<bool> {
+    is_git_repository()
+}
+
+/// Set global Git configuration
+pub fn set_global_config(username: &str, email: &str) -> Result<()> {
+    run_command_with_full_output("git", &["config", "--global", "user.name", username], None)?;
+    run_command_with_full_output("git", &["config", "--global", "user.email", email], None)?;
+    Ok(())
+}
+
+/// Set local Git configuration for current repository
+pub fn set_local_config(username: &str, email: &str) -> Result<()> {
+    run_command_with_full_output("git", &["config", "--local", "user.name", username], None)?;
+    run_command_with_full_output("git", &["config", "--local", "user.email", email], None)?;
+    Ok(())
+}
+
+/// Get global Git configuration
+pub fn get_global_config() -> Result<(String, String)> {
+    let name_output = run_command_with_full_output("git", &["config", "--global", "user.name"], None)?;
+    let email_output = run_command_with_full_output("git", &["config", "--global", "user.email"], None)?;
+    
+    if !name_output.status.success() || !email_output.status.success() {
+        return Err(GitSwitchError::Other("Failed to get global Git config".to_string()));
+    }
+    
+    let name = String::from_utf8_lossy(&name_output.stdout).trim().to_string();
+    let email = String::from_utf8_lossy(&email_output.stdout).trim().to_string();
+    
+    Ok((name, email))
+}
+
+/// Get local Git configuration for current repository
+pub fn get_local_config() -> Result<(String, String)> {
+    let name_output = run_command_with_full_output("git", &["config", "--local", "user.name"], None)?;
+    let email_output = run_command_with_full_output("git", &["config", "--local", "user.email"], None)?;
+    
+    if !name_output.status.success() || !email_output.status.success() {
+        return Err(GitSwitchError::Other("Failed to get local Git config".to_string()));
+    }
+    
+    let name = String::from_utf8_lossy(&name_output.stdout).trim().to_string();
+    let email = String::from_utf8_lossy(&email_output.stdout).trim().to_string();
+    
+    Ok((name, email))
+}
+
+/// Get remote URL (alias for get_git_remote_url)
+pub fn get_remote_url(remote_name: &str) -> Result<String> {
+    get_git_remote_url(remote_name)
+}
+
+/// Set remote URL
+pub fn set_remote_url(remote_name: &str, url: &str) -> Result<()> {
+    update_git_remote(remote_name, url)
+}
+
+/// Set SSH command for Git
+pub fn set_ssh_command(ssh_key_path: &str) -> Result<()> {
+    let ssh_command = format!("ssh -i {}", ssh_key_path);
+    run_command_with_full_output("git", &["config", "core.sshCommand", &ssh_command], None)?;
+    Ok(())
+}
+
+/// Get current branch name
+pub fn get_current_branch() -> Result<String> {
+    let output = run_command_with_full_output("git", &["branch", "--show-current"], None)?;
+    if !output.status.success() {
+        return Err(GitSwitchError::GitCommandFailed {
+            command: "git branch --show-current".to_string(),
+            status: output.status,
+            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+        });
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+/// Set local git config for a specific key-value pair
+pub fn set_local_config_key(key: &str, value: &str) -> Result<()> {
+    let output = run_command_with_full_output("git", &["config", key, value], None)?;
+    if !output.status.success() {
+        return Err(GitSwitchError::GitCommandFailed {
+            command: format!("git config {} {}", key, value),
+            status: output.status,
+            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+        });
+    }
+    Ok(())
+}
+
+/// Get local git config for a specific key
+pub fn get_local_config_key(key: &str) -> Result<String> {
+    let output = run_command_with_full_output("git", &["config", "--local", key], None)?;
+    if !output.status.success() {
+        return Err(GitSwitchError::GitCommandFailed {
+            command: format!("git config --local {}", key),
+            status: output.status,
+            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+        });
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+/// Set global git config for a specific key-value pair
+pub fn set_global_config_key(key: &str, value: &str) -> Result<()> {
+    let output = run_command_with_full_output("git", &["config", "--global", key, value], None)?;
+    if !output.status.success() {
+        return Err(GitSwitchError::GitCommandFailed {
+            command: format!("git config --global {} {}", key, value),
+            status: output.status,
+            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+        });
+    }
+    Ok(())
+}
+
+/// Get global git config for a specific key
+pub fn get_global_config_key(key: &str) -> Result<String> {
+    let output = run_command_with_full_output("git", &["config", "--global", key], None)?;
+    if !output.status.success() {
+        return Err(GitSwitchError::GitCommandFailed {
+            command: format!("git config --global {}", key),
+            status: output.status,
+            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+        });
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+

@@ -11,9 +11,14 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  check:
-    name: Quick Checks
-    runs-on: ubuntu-latest
+  test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -32,11 +37,12 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ubuntu-cargo-check-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ubuntu-cargo-check-
+            ${{ runner.os }}-cargo-
 
-      - name: Install system dependencies
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential pkg-config libssl-dev
@@ -47,39 +53,5 @@ jobs:
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
-      - name: Check if code compiles
-        run: cargo check --all-targets --all-features
-
-  build-scripts:
-    name: Validate Build Scripts
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            script: ./build.sh --tarball --skip-tests
-          - os: windows-latest
-            script: .\build-windows.ps1 -SkipTests
-          - os: macos-latest
-            script: ./build-macos.sh --tarball --skip-tests
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install Linux dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential pkg-config libssl-dev
-
-      - name: Make scripts executable (Unix)
-        if: runner.os != 'Windows'
-        run: chmod +x build*.sh
-
-      - name: Test build script
-        run: ${{ matrix.script }}
+      - name: Run comprehensive platform tests
+        run: cargo test --test comprehensive_platform_tests -- --nocapture

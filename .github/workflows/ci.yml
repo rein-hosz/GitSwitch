@@ -68,11 +68,45 @@ jobs:
             Set-Service ssh-agent -StartupType Manual -ErrorAction SilentlyContinue
             Start-Service ssh-agent -ErrorAction Stop
             Write-Host "SSH agent service started successfully"
+            
+            # Wait a moment for the service to be fully ready
+            Start-Sleep -Seconds 2
+            
+            # Set SSH_AUTH_SOCK environment variable
+            $env:SSH_AUTH_SOCK = "\\.\pipe\openssh-ssh-agent"
+            echo "SSH_AUTH_SOCK=$env:SSH_AUTH_SOCK" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            Write-Host "Set SSH_AUTH_SOCK to: $env:SSH_AUTH_SOCK"
+            
+            # Test SSH agent connectivity
+            try {
+              $testResult = ssh-add -l 2>&1
+              Write-Host "SSH agent test result: $testResult"
+            } catch {
+              Write-Host "SSH agent connectivity test failed: $($_.Exception.Message)"
+            }
+            
           } catch {
-            Write-Host "Failed to start ssh-agent service, trying alternative approach"
-            # Try starting ssh-agent manually
-            $sshAgent = Start-Process ssh-agent -PassThru -WindowStyle Hidden
-            Write-Host "Started ssh-agent process with PID: $($sshAgent.Id)"
+            Write-Host "Failed to start ssh-agent service: $($_.Exception.Message)"
+            Write-Host "Trying alternative approach with process startup"
+            
+            # Alternative: Start ssh-agent as a process and capture output
+            $sshAgentOutput = ssh-agent
+            Write-Host "SSH agent output: $sshAgentOutput"
+            
+            # Parse the output to set environment variables
+            if ($sshAgentOutput -match "SSH_AUTH_SOCK=([^;]+)") {
+              $sshAuthSock = $matches[1]
+              $env:SSH_AUTH_SOCK = $sshAuthSock
+              echo "SSH_AUTH_SOCK=$sshAuthSock" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+              Write-Host "Set SSH_AUTH_SOCK to: $sshAuthSock"
+            }
+            
+            if ($sshAgentOutput -match "SSH_AGENT_PID=([^;]+)") {
+              $sshAgentPid = $matches[1]
+              $env:SSH_AGENT_PID = $sshAgentPid
+              echo "SSH_AGENT_PID=$sshAgentPid" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+              Write-Host "Set SSH_AGENT_PID to: $sshAgentPid"
+            }
           }
 
           # Add Git's SSH tools to PATH
@@ -81,11 +115,6 @@ jobs:
             echo $gitSshPath | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
             Write-Host "Added Git SSH tools to PATH: $gitSshPath"
           }
-
-          # Set SSH_AUTH_SOCK environment variable
-          $env:SSH_AUTH_SOCK = "\\.\pipe\openssh-ssh-agent"
-          echo "SSH_AUTH_SOCK=$env:SSH_AUTH_SOCK" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          Write-Host "Set SSH_AUTH_SOCK to: $env:SSH_AUTH_SOCK"
 
       - name: Check formatting
         run: cargo fmt --all -- --check

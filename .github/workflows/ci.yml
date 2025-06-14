@@ -102,13 +102,19 @@ jobs:
           # or exit code 1 if agent is running but has keys.
           # Any other exit code indicates a problem.
           try {
-            Write-Host "Testing ssh-agent connectivity with ssh-add -l..."
-            $result = ssh-add -l 2>&1
+            Write-Host "Testing ssh-agent connectivity with system OpenSSH ssh-add.exe -l..."
+            $SshAddPath = "$env:SystemRoot\\System32\\OpenSSH\\ssh-add.exe"
+            if (-not (Test-Path $SshAddPath)) {
+              Write-Error "System ssh-add.exe not found at $SshAddPath"
+              exit 1
+            }
+            # Explicitly call the system ssh-add
+            $result = & $SshAddPath -l 2>&1
             $exitCode = $LASTEXITCODE
-            Write-Host "ssh-add -l exited with code: $exitCode"
-            Write-Host "ssh-add -l output: $result"
+            Write-Host "System ssh-add.exe -l exited with code: $exitCode"
+            Write-Host "System ssh-add.exe -l output: $result"
             if ($exitCode -ne 0 -and $exitCode -ne 1) {
-              Write-Error "SSH agent is not responding correctly. Exit code: $exitCode. Output: $result"
+              Write-Error "SSH agent is not responding correctly to system ssh-add.exe. Exit code: $exitCode. Output: $result"
               # Attempt to get more diagnostic info
               Get-Service ssh-agent | Select-Object -Property *
               exit 1

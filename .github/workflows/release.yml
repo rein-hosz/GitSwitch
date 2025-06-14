@@ -1,4 +1,4 @@
-name: Build and Release git-switch
+name: Release Multi-Platform Packages
 
 on:
   push:
@@ -8,19 +8,16 @@ on:
 
 jobs:
   build-linux:
-    name: Build for Linux
+    name: Build Linux Packages
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.get_version.outputs.VERSION }}
       version_no_v: ${{ steps.get_version.outputs.VERSION_NO_V }}
-      tar_gz_name: git-switch-${{ steps.get_version.outputs.VERSION_NO_V }}.tar.gz # Use VERSION_NO_V for consistency with local
-      deb_name_pattern: git-switch_${{ steps.get_version.outputs.VERSION_NO_V }}-*amd64.deb
-      rpm_name_pattern: git-switch-${{ steps.get_version.outputs.VERSION_NO_V }}-*.x86_64.rpm
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Required for git describe to work
+          fetch-depth: 0
 
       - name: Get version from tag
         id: get_version
@@ -28,20 +25,16 @@ jobs:
           VERSION_TAG=$(git describe --tags --abbrev=0)
           echo "VERSION=${VERSION_TAG}" >> $GITHUB_OUTPUT
           echo "VERSION_NO_V=${VERSION_TAG#v}" >> $GITHUB_OUTPUT
-          echo "Linux: Git describe output (VERSION): $VERSION_TAG"
-          echo "Linux: Version without v (VERSION_NO_V): ${VERSION_TAG#v}"
+          echo "Linux: Building version: $VERSION_TAG"
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
 
-      - name: Install cargo-deb and cargo-generate-rpm
+      - name: Install build dependencies
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y libssl-dev pkg-config # Dependencies for some crates
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev
           cargo install cargo-deb cargo-generate-rpm
-          echo "cargo-deb and cargo-generate-rpm installed."
 
       - name: Cache Cargo dependencies
         uses: actions/cache@v4
@@ -52,65 +45,47 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ubuntu-cargo-release-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-
+            ubuntu-cargo-release-
 
-      - name: Build release binary (Linux)
-        run: cargo build --release --verbose
-        env:
-          CARGO_TERM_COLOR: always
+      - name: Make build script executable
+        run: chmod +x build.sh
 
-      - name: Run Linux packaging script (build.sh for deb, rpm, tar.gz)
-        run: |
-          echo "Running build.sh --all --version ${{ steps.get_version.outputs.VERSION_NO_V }}" # Pass VERSION_NO_V to build.sh
-          # Ensure build.sh is executable
-          chmod +x ./build.sh
-          ./build.sh --all --version ${{ steps.get_version.outputs.VERSION_NO_V }}
-        env:
-          CARGO_TERM_COLOR: always
-
-      - name: List target directory after Linux build (for debugging)
-        run: |
-          echo "Listing target/ contents (Linux):"
-          ls -AlR target/
+      - name: Build all Linux packages
+        run: ./build.sh --all --version ${{ steps.get_version.outputs.VERSION }}
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: linux-artifacts-${{ steps.get_version.outputs.VERSION }}
+          name: linux-packages-${{ steps.get_version.outputs.VERSION }}
           path: |
             target/git-switch-${{ steps.get_version.outputs.VERSION_NO_V }}.tar.gz
             target/debian/git-switch_${{ steps.get_version.outputs.VERSION_NO_V }}-*amd64.deb
             target/rpm/git-switch-${{ steps.get_version.outputs.VERSION_NO_V }}-*.x86_64.rpm
-            target/rpm-build/RPMS/x86_64/git-switch-${{ steps.get_version.outputs.VERSION_NO_V }}-*.x86_64.rpm # Alternative RPM path
           if-no-files-found: error
 
   build-windows:
-    name: Build for Windows
+    name: Build Windows Package
     runs-on: windows-latest
     outputs:
       version: ${{ steps.get_version.outputs.VERSION }}
-      zip_name: git-switch-${{ steps.get_version.outputs.VERSION }}-windows-amd64.zip
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Required for git describe to work
+          fetch-depth: 0
 
       - name: Get version from tag
         id: get_version
+        shell: pwsh
         run: |
           $VERSION_TAG = git describe --tags --abbrev=0
           Add-Content -Path $env:GITHUB_OUTPUT -Value "VERSION=$VERSION_TAG"
-          Write-Host "Windows: Git describe output (VERSION): $VERSION_TAG"
-        shell: pwsh
+          Write-Host "Windows: Building version: $VERSION_TAG"
 
-      - name: Set up Rust toolchain (GNU for Windows)
+      - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-          target: x86_64-pc-windows-gnu # Explicitly set target if needed
 
       - name: Cache Cargo dependencies
         uses: actions/cache@v4
@@ -121,157 +96,164 @@ jobs:
             C:\Users\runneradmin\.cargo\registry\cache
             C:\Users\runneradmin\.cargo\git\db
             target
-          key: ${{ runner.os }}-cargo-x86_64-pc-windows-gnu-${{ hashFiles('**/Cargo.lock') }}
+          key: windows-cargo-release-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-x86_64-pc-windows-gnu-
+            windows-cargo-release-
 
-      - name: Run Windows build script
+      - name: Build Windows package
         shell: pwsh
         run: |
-          Write-Host "Running .\build-windows.ps1 -BuildVersion ${{ steps.get_version.outputs.VERSION }}"
+          Write-Host "Running build-windows.ps1 -BuildVersion ${{ steps.get_version.outputs.VERSION }}"
           .\build-windows.ps1 -BuildVersion ${{ steps.get_version.outputs.VERSION }}
-        env:
-          CARGO_TERM_COLOR: always
-          RUSTFLAGS: "-C strip=debuginfo" # Ensure release builds are stripped
 
-      - name: List target directory after Windows build (for debugging)
-        run: |
-          Write-Host "Listing target/ contents (Windows):"
-          Get-ChildItem -Path target -Recurse -ErrorAction SilentlyContinue
-          Write-Host "Listing target/x86_64-pc-windows-gnu/release contents (Windows):"
-          Get-ChildItem -Path target/x86_64-pc-windows-gnu/release -Recurse -ErrorAction SilentlyContinue
-        shell: pwsh
-
-      - name: Upload Windows artifact (ZIP)
+      - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-artifacts-${{ steps.get_version.outputs.VERSION }}
+          name: windows-package-${{ steps.get_version.outputs.VERSION }}
           path: target/release/git-switch-${{ steps.get_version.outputs.VERSION }}-windows-amd64.zip
           if-no-files-found: error
 
-  create_release:
+  build-macos:
+    name: Build macOS Packages
+    runs-on: macos-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.VERSION }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          VERSION_TAG=$(git describe --tags --abbrev=0)
+          echo "VERSION=${VERSION_TAG}" >> $GITHUB_OUTPUT
+          echo "macOS: Building version: $VERSION_TAG"
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: macos-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            macos-cargo-release-
+
+      - name: Install create-dmg (optional)
+        run: brew install create-dmg
+
+      - name: Make build script executable
+        run: chmod +x build-macos.sh
+
+      - name: Build all macOS packages
+        run: ./build-macos.sh --all --version ${{ steps.get_version.outputs.VERSION }}
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-packages-${{ steps.get_version.outputs.VERSION }}
+          path: |
+            target/packages/git-switch-*-macos-amd64.tar.gz
+            target/packages/git-switch-*-macos-amd64.dmg
+            target/packages/git-switch-*-macos-amd64.pkg
+          if-no-files-found: error
+
+  create-release:
     name: Create GitHub Release
-    needs: [build-linux, build-windows]
+    needs: [build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Get version info from Linux build job outputs
-        id: get_version_linux
-        run: |
-          echo "VERSION=${{ needs.build-linux.outputs.version }}" >> $GITHUB_OUTPUT
-          echo "VERSION_NO_V=${{ needs.build-linux.outputs.version_no_v }}" >> $GITHUB_OUTPUT
-          echo "TAR_GZ_NAME=${{ needs.build-linux.outputs.tar_gz_name }}" >> $GITHUB_OUTPUT
-          echo "DEB_NAME_PATTERN=${{ needs.build-linux.outputs.deb_name_pattern }}" >> $GITHUB_OUTPUT
-          echo "RPM_NAME_PATTERN=${{ needs.build-linux.outputs.rpm_name_pattern }}" >> $GITHUB_OUTPUT
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Get ZIP name from Windows build job outputs
-        id: get_version_windows
-        run: |
-          echo "ZIP_NAME=${{ needs.build-windows.outputs.zip_name }}" >> $GITHUB_OUTPUT
-
-      - name: Download Linux artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          name: linux-artifacts-${{ steps.get_version_linux.outputs.VERSION }}
-          path: dist/linux
-
-      - name: Download Windows artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: windows-artifacts-${{ needs.build-linux.outputs.version }} # Use version from Linux job as the reference
-          path: dist/windows
+          path: dist/
 
       - name: List downloaded files (for debugging)
         run: |
-          echo "Listing dist/ contents after download:"
-          ls -AlR dist
+          echo "Listing dist/ contents:"
+          find dist/ -type f -ls
 
-      - name: Prepare Release Assets
+      - name: Prepare release assets
         id: prep_assets
         run: |
-          VERSION_TAG="${{ steps.get_version_linux.outputs.VERSION }}"
-          VERSION_NO_V_TAG="${{ steps.get_version_linux.outputs.VERSION_NO_V }}"
-          TAR_GZ_NAME_EXPECTED="${{ steps.get_version_linux.outputs.TAR_GZ_NAME }}"
-          DEB_PATTERN_EXPECTED="${{ steps.get_version_linux.outputs.DEB_NAME_PATTERN }}"
-          RPM_PATTERN_EXPECTED="${{ steps.get_version_linux.outputs.RPM_NAME_PATTERN }}"
-          WINDOWS_ZIP_NAME_EXPECTED="${{ steps.get_version_windows.outputs.ZIP_NAME }}"
-
+          VERSION_TAG="${{ needs.build-linux.outputs.version }}"
           mkdir -p release_assets
-          echo "--- Locating Linux Assets in dist/linux/ ---"
-          ls -AlR dist/linux/
-          echo "--- Locating Windows Assets in dist/windows/ ---"
-          ls -AlR dist/windows/
 
-          # Tar.gz
-          TAR_GZ_FILE=$(find dist/linux -name "$TAR_GZ_NAME_EXPECTED" -type f)
-          if [ -f "$TAR_GZ_FILE" ]; then
-            cp "$TAR_GZ_FILE" release_assets/
-            echo "Copied TAR.GZ: $TAR_GZ_FILE to release_assets/"
+          # Copy Linux packages
+          find dist/linux-packages-${VERSION_TAG}/ -name "*.tar.gz" -exec cp {} release_assets/ \;
+          find dist/linux-packages-${VERSION_TAG}/ -name "*.deb" -exec cp {} release_assets/ \;
+          find dist/linux-packages-${VERSION_TAG}/ -name "*.rpm" -exec cp {} release_assets/ \;
+
+          # Copy Windows package
+          find dist/windows-package-${VERSION_TAG}/ -name "*.zip" -exec cp {} release_assets/ \;
+
+          # Copy macOS packages
+          find dist/macos-packages-${VERSION_TAG}/ -name "*.tar.gz" -exec cp {} release_assets/ \;
+          find dist/macos-packages-${VERSION_TAG}/ -name "*.dmg" -exec cp {} release_assets/ \;
+          find dist/macos-packages-${VERSION_TAG}/ -name "*.pkg" -exec cp {} release_assets/ \;
+
+          echo "Prepared assets:"
+          ls -la release_assets/
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          VERSION="${{ needs.build-linux.outputs.version }}"
+          echo "## GitSwitch $VERSION" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "Cross-platform Git account and SSH key management tool." >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+
+          if git describe --tags --abbrev=0 HEAD~1 &> /dev/null; then
+            echo "### Changes in this release:" >> CHANGELOG.md
+            git log --pretty=format:"- %s" $(git describe --tags --abbrev=0 HEAD~1)..HEAD >> CHANGELOG.md
           else
-            echo "::error::Tar.gz file not found: $TAR_GZ_NAME_EXPECTED in dist/linux/"
-            exit 1
+            echo "### Features:" >> CHANGELOG.md
+            echo "- Complete Git account and SSH key management" >> CHANGELOG.md
+            echo "- Cross-platform support (Linux, Windows, macOS)" >> CHANGELOG.md
+            echo "- Automated SSH key generation and configuration" >> CHANGELOG.md
+            echo "- Multiple package formats for easy installation" >> CHANGELOG.md
           fi
 
-          # Deb
-          DEB_FILE=$(find dist/linux -path "*/debian/*" -name "$DEB_PATTERN_EXPECTED" -type f | head -n 1)
-          if [ -f "$DEB_FILE" ]; then
-            cp "$DEB_FILE" release_assets/
-            echo "Copied DEB: $DEB_FILE to release_assets/"
-          else
-            echo "::error::Deb file not found with pattern: $DEB_PATTERN_EXPECTED in dist/linux/debian/"
-            exit 1
-          fi
-
-          # RPM
-          # Check both target/rpm and target/rpm-build/RPMS/x86_64
-          RPM_FILE=$(find dist/linux -path "*/rpm/*" -name "$RPM_PATTERN_EXPECTED" -type f | head -n 1)
-          if [ ! -f "$RPM_FILE" ]; then
-            RPM_FILE=$(find dist/linux -path "*/rpm-build/RPMS/x86_64/*" -name "$RPM_PATTERN_EXPECTED" -type f | head -n 1)
-          fi
-          if [ -f "$RPM_FILE" ]; then
-            cp "$RPM_FILE" release_assets/
-            echo "Copied RPM: $RPM_FILE to release_assets/"
-          else
-            echo "::error::RPM file not found with pattern: $RPM_PATTERN_EXPECTED in dist/linux/rpm/ or dist/linux/rpm-build/RPMS/x86_64/"
-            exit 1
-          fi
-            
-          # Windows Zip
-          WINDOWS_ZIP_FILE=$(find dist/windows -name "$WINDOWS_ZIP_NAME_EXPECTED" -type f)
-          if [ -f "$WINDOWS_ZIP_FILE" ]; then
-            cp "$WINDOWS_ZIP_FILE" release_assets/
-            echo "Copied Windows ZIP: $WINDOWS_ZIP_FILE to release_assets/"
-          else
-            echo "::error::Windows ZIP file not found: $WINDOWS_ZIP_NAME_EXPECTED in dist/windows/"
-            exit 1
-          fi
-
-          echo "--- Prepared assets in release_assets/ directory: ---"
-          ls -Al release_assets
-
-          ASSET_FILES=$(find release_assets -type f -printf '%p,' | sed 's/,$//')
-          echo "ASSET_FILES=${ASSET_FILES}" >> $GITHUB_OUTPUT
-          if [ -z "$ASSET_FILES" ]; then
-            echo "::error::No asset files were found to upload after preparation."
-            exit 1
-          fi
+          echo "" >> CHANGELOG.md
+          echo "### Package Downloads:" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "#### Linux:" >> CHANGELOG.md
+          echo "- **DEB Package**: For Debian/Ubuntu systems" >> CHANGELOG.md
+          echo "- **RPM Package**: For Red Hat/Fedora/SUSE systems" >> CHANGELOG.md
+          echo "- **TAR.GZ Archive**: For manual installation" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "#### Windows:" >> CHANGELOG.md
+          echo "- **ZIP Package**: Includes executable and PowerShell installer" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "#### macOS:" >> CHANGELOG.md
+          echo "- **DMG Image**: Drag-and-drop installation" >> CHANGELOG.md
+          echo "- **PKG Installer**: Native macOS installer" >> CHANGELOG.md
+          echo "- **TAR.GZ Archive**: For manual installation" >> CHANGELOG.md
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.get_version_linux.outputs.VERSION }}
-          name: Release ${{ steps.get_version_linux.outputs.VERSION }}
-          body: |
-            Automated release for git-switch version ${{ steps.get_version_linux.outputs.VERSION }}.
-
-            **Assets:**
-            - Linux Tarball (`.tar.gz`)
-            - Linux Debian Package (`.deb`)
-            - Linux RPM Package (`.rpm`)
-            - Windows Package (`.zip` containing executable and install script)
+          tag_name: ${{ needs.build-linux.outputs.version }}
+          name: GitSwitch ${{ needs.build-linux.outputs.version }}
+          body_path: CHANGELOG.md
           draft: false
           prerelease: false
-          files: ${{ steps.prep_assets.outputs.ASSET_FILES }}
+          files: release_assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

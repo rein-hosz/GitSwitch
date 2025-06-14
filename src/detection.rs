@@ -78,19 +78,7 @@ pub fn check_account_mismatch(config: &Config) -> Result<()> {
     Ok(())
 }
 
-/// Repository discovery - find all git repositories and suggest account assignments
-pub fn discover_repositories(_config: &Config) -> Result<()> {
-    // TODO: Implement repository discovery
-    println!("{} Repository discovery feature coming soon!", "🚧".yellow());
-    Ok(())
-}
-
-/// Bulk operations - apply account to multiple repositories
-pub fn bulk_apply_account(_config: &Config, _account_name: &str, _paths: &[String]) -> Result<()> {
-    // TODO: Implement bulk operations
-    println!("{} Bulk operations feature coming soon!", "🚧".yellow());
-    Ok(())
-}
+// Repository discovery and bulk operations are now handled by the repository.rs module
 
 /// Detect account for a specific repository based on remote URL
 pub fn detect_account_for_remote_url(config: &Config, remote_url: &str) -> Result<Option<String>> {

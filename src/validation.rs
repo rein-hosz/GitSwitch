@@ -68,6 +68,8 @@ pub fn validate_ssh_key(key_path: &Path) -> Result<()> {
 }
 
 /// Comprehensive SSH key validation with enhanced security checks
+// Comprehensive SSH key validation (currently unused but available for future use)
+#[allow(dead_code)]
 pub fn validate_ssh_key_comprehensive(key_path: &Path) -> Result<()> {
     // First run basic validation
     validate_ssh_key(key_path)?;
@@ -96,6 +98,7 @@ pub fn validate_ssh_key_comprehensive(key_path: &Path) -> Result<()> {
 }
 
 /// Validate SSH private key content format
+#[allow(dead_code)]
 fn validate_ssh_private_key_content(content: &str) -> Result<()> {
     let content = content.trim();
     
@@ -125,6 +128,7 @@ fn validate_ssh_private_key_content(content: &str) -> Result<()> {
 }
 
 /// Validate OpenSSH format private key
+#[allow(dead_code)]
 fn validate_openssh_private_key(content: &str) -> Result<()> {
     let lines: Vec<&str> = content.lines().collect();
     
@@ -160,6 +164,7 @@ fn validate_openssh_private_key(content: &str) -> Result<()> {
 }
 
 /// Validate traditional format private key
+#[allow(dead_code)]
 fn validate_traditional_private_key(content: &str, begin: &str, end: &str) -> Result<()> {
     let lines: Vec<&str> = content.lines().collect();
     
@@ -195,6 +200,7 @@ fn validate_traditional_private_key(content: &str, begin: &str, end: &str) -> Re
 }
 
 /// Validate SSH public key file
+#[allow(dead_code)]
 fn validate_ssh_public_key_file(pub_key_path: &Path) -> Result<()> {
     let content = std::fs::read_to_string(pub_key_path)
         .map_err(|e| GitSwitchError::Io(e))?;
@@ -203,6 +209,7 @@ fn validate_ssh_public_key_file(pub_key_path: &Path) -> Result<()> {
 }
 
 /// Validate SSH public key content
+#[allow(dead_code)]
 fn validate_ssh_public_key_content(content: &str) -> Result<()> {
     let content = content.trim();
     let parts: Vec<&str> = content.split_whitespace().collect();
@@ -242,6 +249,7 @@ fn validate_ssh_public_key_content(content: &str) -> Result<()> {
 }
 
 /// Verify that private and public keys are a matching pair
+#[allow(dead_code)]
 fn verify_ssh_key_pair(private_key_path: &Path, public_key_path: &Path) -> Result<()> {
     // Use ssh-keygen to generate public key from private key and compare
     let output = std::process::Command::new("ssh-keygen")
@@ -283,6 +291,7 @@ fn verify_ssh_key_pair(private_key_path: &Path, public_key_path: &Path) -> Resul
 }
 
 /// Validate key strength based on type and size
+#[allow(dead_code)]
 fn validate_key_strength(key_type: &str, key_data: &str) -> Result<()> {
     // Use base64 crate for decoding
     use base64::{Engine as _, engine::general_purpose};
@@ -314,6 +323,7 @@ fn validate_key_strength(key_type: &str, key_data: &str) -> Result<()> {
 }
 
 /// Check if a string is valid base64
+#[allow(dead_code)]
 fn is_valid_base64(s: &str) -> bool {
     if s.is_empty() {
         return false;
@@ -379,10 +389,10 @@ pub fn validate_account_name(name: &str) -> Result<()> {
         ));
     }
 
-    // Check for invalid characters
-    if !name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+    // Check for invalid characters - allow spaces, alphanumeric, hyphens, and underscores
+    if !name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == ' ') {
         return Err(GitSwitchError::Other(
-            "Account name can only contain alphanumeric characters, hyphens, and underscores".to_string(),
+            "Account name can only contain alphanumeric characters, spaces, hyphens, and underscores".to_string(),
         ));
     }
 

@@ -57,17 +57,17 @@ pub fn add_account(
     let expanded_key_path = utils::expand_path(&ssh_key_path_str)?;
     utils::ensure_parent_dir_exists(&expanded_key_path)?;
 
-    // Progress indicator for key generation
+    // Clean progress indicator for key generation
     let pb = ProgressBar::new_spinner();
     pb.set_style(ProgressStyle::default_spinner()
-        .template("{spinner:.green} {msg}")
+        .template("{spinner:.cyan} {msg}")
         .unwrap());
 
     if ssh_key_path_opt.is_none() && !expanded_key_path.exists() {
-        pb.set_message("Generating SSH key...");
-        pb.enable_steady_tick(std::time::Duration::from_millis(100));
+        pb.set_message("🔐 Generating SSH key pair...");
+        pb.enable_steady_tick(std::time::Duration::from_millis(80));
         ssh::generate_ssh_key(&expanded_key_path)?;
-        pb.finish_with_message("SSH key generated successfully");
+        pb.finish_and_clear();
     } else if ssh_key_path_opt.is_some() && !expanded_key_path.exists() {
         return Err(GitSwitchError::SshKeyGeneration{
             message: format!("Specified SSH key path does not exist: {}", expanded_key_path.display())
@@ -75,7 +75,6 @@ pub fn add_account(
     } else if expanded_key_path.exists() {
         // Validate existing SSH key
         validation::validate_ssh_key(&expanded_key_path)?;
-        println!("{} Using existing SSH key at: {}", "✓".green(), expanded_key_path.display());
     }
 
     let account = Account {
@@ -91,25 +90,60 @@ pub fn add_account(
     config.accounts.insert(name.to_string(), account);
     config::save_config(config)?;
 
-    // Update SSH config and display public key
+    // Update SSH config silently
     ssh::update_ssh_config(name, &ssh_key_path_str)?;
     
-    println!("{} Account '{}' added successfully", "✓".green().bold(), name.cyan());
+    // Beautiful success message
+    println!("\n{}", "🎉 Account Created Successfully!".bold().green());
+    println!("{}", "─".repeat(40).bright_black());
+    
+    println!("📧 {} {}", "Account:".bold(), name.cyan().bold());
+    println!("👤 {} {}", "Username:".bold(), username.bright_white());
+    println!("✉️  {} {}", "Email:".bold(), email.bright_white());
+    
+    if let Some(provider) = &config.accounts[name].provider {
+        let provider_emoji = match provider.as_str() {
+            "github" => "🐙",
+            "gitlab" => "🦊", 
+            "bitbucket" => "🪣",
+            _ => "🔗"
+        };
+        println!("{} {} {}", provider_emoji, "Provider:".bold(), provider.bright_cyan());
+    }
     
     if ssh_key_path_opt.is_none() {
-        ssh::display_public_key(&expanded_key_path)?;
-        if let Some(provider) = &config.accounts[name].provider {
-            match provider.as_str() {
-                "github" => println!("\n{} Add this key to GitHub: {}", 
-                    "→".blue(), "https://github.com/settings/keys".underline()),
-                "gitlab" => println!("\n{} Add this key to GitLab: {}", 
-                    "→".blue(), "https://gitlab.com/-/profile/keys".underline()),
-                "bitbucket" => println!("\n{} Add this key to Bitbucket: {}", 
-                    "→".blue(), "https://bitbucket.org/account/settings/ssh-keys/".underline()),
-                _ => println!("\n{} Add this key to your Git provider", "→".blue()),
+        println!("🔑 {} Generated and configured", "SSH Key:".bold());
+        
+        // Display formatted public key
+        println!("\n{}", "📋 Your Public Key".bold().yellow());
+        println!("{}", "─".repeat(40).bright_black());
+        if let Ok(()) = ssh::display_public_key_formatted(&expanded_key_path) {
+            // Provider-specific instructions
+            if let Some(provider) = &config.accounts[name].provider {
+                match provider.as_str() {
+                    "github" => {
+                        println!("\n{} {} Copy the key above and add it to GitHub:", "🚀".bold(), "Next Steps:".bold().bright_yellow());
+                        println!("   {}", "https://github.com/settings/keys".bright_blue().underline());
+                    },
+                    "gitlab" => {
+                        println!("\n{} {} Copy the key above and add it to GitLab:", "🚀".bold(), "Next Steps:".bold().bright_yellow());
+                        println!("   {}", "https://gitlab.com/-/profile/keys".bright_blue().underline());
+                    },
+                    "bitbucket" => {
+                        println!("\n{} {} Copy the key above and add it to Bitbucket:", "🚀".bold(), "Next Steps:".bold().bright_yellow());
+                        println!("   {}", "https://bitbucket.org/account/settings/ssh-keys/".bright_blue().underline());
+                    },
+                    _ => {
+                        println!("\n{} {} Copy the key above and add it to your Git provider", "🚀".bold(), "Next Steps:".bold().bright_yellow());
+                    }
+                }
             }
         }
+    } else {
+        println!("🔑 {} Using existing key", "SSH Key:".bold());
     }
+    
+    println!("\n{} {} to start using this account", "💡".bold(), format!("Run 'git-switch use {}'", name).bright_green().bold());
 
     Ok(())
 }
@@ -174,45 +208,92 @@ pub fn add_account_interactive(config: &mut Config, suggested_name: &str) -> Res
 /// List accounts with optional detailed view
 pub fn list_accounts(config: &Config, detailed: bool) -> Result<()> {
     if config.accounts.is_empty() {
-        println!("{} No accounts configured", "ℹ".blue());
-        println!("Use {} to add your first account", "git-switch add".cyan());
+        println!("\n{} {}", "📭".yellow(), "No Git accounts configured yet".bold());
+        println!("{}", "──────────────────────────────────".bright_black());
+        println!("Get started by adding your first account:");
+        println!("{} {}", "💡".bold(), "git-switch add <name> <username> <email>".bright_cyan());
+        println!("{} {}", "📖".bold(), "git-switch add --help".bright_white().dimmed());
         return Ok(());
     }
 
+    let account_count = config.accounts.len();
+    let plural = if account_count == 1 { "Account" } else { "Accounts" };
+    
+    println!("\n{} {} {} {}", "📚".bold(), account_count.to_string().bright_yellow().bold(), plural.bold(), "Configured".bold());
+    println!("{}", "═".repeat(50).bright_black());
+
     if detailed {
-        println!("{}", "Configured Accounts (Detailed)".bold().cyan());
-        println!("{}", "─".repeat(50));
-        
-        for (name, account) in &config.accounts {
-            println!("\n{} {}", "📧".to_string(), name.bold().green());
-            println!("  Username: {}", account.username);
-            println!("  Email: {}", account.email);
-            println!("  SSH Key: {}", account.ssh_key_path);
-            if let Some(provider) = &account.provider {
-                println!("  Provider: {}", provider.cyan());
+        for (i, (name, account)) in config.accounts.iter().enumerate() {
+            if i > 0 {
+                println!(); // Add spacing between accounts
             }
+            
+            // Get provider emoji and info
+            let (provider_emoji, provider_name) = match account.provider.as_deref() {
+                Some("github") => ("🐙", "GitHub"),
+                Some("gitlab") => ("🦊", "GitLab"), 
+                Some("bitbucket") => ("🪣", "Bitbucket"),
+                Some(other) => ("�", other),
+                None => ("❓", "Unknown")
+            };
+            
+            // Check if SSH key exists
+            let ssh_key_status = if let Ok(expanded_path) = utils::expand_path(&account.ssh_key_path) {
+                if expanded_path.exists() {
+                    ("✅", "Found".green())
+                } else {
+                    ("❌", "Missing".red())
+                }
+            } else {
+                ("⚠️", "Invalid Path".yellow())
+            };
+            
+            println!("╭─ {} {} {}", "📋".bold(), name.bright_cyan().bold(), format!("({})", provider_name).bright_black());
+            println!("│");
+            println!("├─ {} {} {}", "👤".bold(), "Username:".bold(), account.username.bright_white());
+            println!("├─ {} {} {}", "✉️".bold(), "Email:".bold(), account.email.bright_white());
+            println!("├─ {} {} {}", provider_emoji.bold(), "Provider:".bold(), provider_name.bright_cyan());
+            println!("├─ {} {} {} {}", "🔑".bold(), "SSH Key:".bold(), ssh_key_status.1, ssh_key_status.0);
+            println!("│   {}", account.ssh_key_path.bright_black());
+            
             if !account.groups.is_empty() {
-                println!("  Groups: {}", account.groups.join(", "));
+                println!("├─ {} {} {}", "👥".bold(), "Groups:".bold(), account.groups.join(", ").bright_white());
             }
             if !account.additional_ssh_keys.is_empty() {
-                println!("  Additional SSH Keys: {}", account.additional_ssh_keys.len());
+                println!("├─ {} {} {}", "🔐".bold(), "Additional Keys:".bold(), account.additional_ssh_keys.len().to_string().bright_white());
             }
+            println!("╰─ {} {}", "🚀".bold(), format!("git-switch use '{}'", name).bright_green());
         }
     } else {
-        println!("{}", "Configured Accounts".bold().cyan());
-        println!("{}", "─".repeat(30));
-        
+        // Compact view with better formatting
         for (name, account) in &config.accounts {
-            let provider_info = if let Some(provider) = &account.provider {
-                format!(" ({})", provider.cyan())
-            } else {
-                String::new()
+            let (provider_emoji, provider_name) = match account.provider.as_deref() {
+                Some("github") => ("🐙", "GitHub"),
+                Some("gitlab") => ("🦊", "GitLab"), 
+                Some("bitbucket") => ("🪣", "Bitbucket"),
+                Some(other) => ("🔗", other),
+                None => ("❓", "Unknown")
             };
-            println!("  {} {} <{}>{}", "📧".to_string(), name.bold(), account.email, provider_info);
+            
+            // Check SSH key status
+            let key_status = if let Ok(expanded_path) = utils::expand_path(&account.ssh_key_path) {
+                if expanded_path.exists() { "✅" } else { "❌" }
+            } else { "⚠️" };
+            
+            println!("  {} {} {} {} {} {} {}",
+                provider_emoji,
+                name.bright_cyan().bold(),
+                "•".bright_black(),
+                account.username.bright_white(),
+                "•".bright_black(), 
+                provider_name.dimmed(),
+                key_status
+            );
         }
     }
     
-    println!("\nUse {} to switch accounts", "git-switch use <account>".cyan());
+    println!("\n{}", "─".repeat(50).bright_black());
+    println!("{} {} {}", "💡".bold(), "Quick commands:".bold().bright_yellow(), "git-switch use <name> | git-switch add <name>".bright_white().dimmed());
     Ok(())
 }
 
@@ -478,30 +559,5 @@ fn test_ssh_connection(host: &str) -> Result<()> {
 
 // Profile management functions
 
-/// Create a new profile
-pub fn create_profile(_config: &mut Config, _name: &str, _accounts: &[String]) -> Result<()> {
-    // TODO: Implement profile functionality
-    println!("{} Profile functionality coming soon!", "🚧".yellow());
-    Ok(())
-}
-
-/// List all profiles
-pub fn list_profiles(_config: &Config) -> Result<()> {
-    // TODO: Implement profile functionality
-    println!("{} Profile functionality coming soon!", "🚧".yellow());
-    Ok(())
-}
-
-/// Use a profile
-pub fn use_profile(_config: &Config, _name: &str) -> Result<()> {
-    // TODO: Implement profile functionality
-    println!("{} Profile functionality coming soon!", "🚧".yellow());
-    Ok(())
-}
-
-/// Remove a profile
-pub fn remove_profile(_config: &mut Config, _name: &str) -> Result<()> {
-    // TODO: Implement profile functionality
-    println!("{} Profile functionality coming soon!", "🚧".yellow());
-    Ok(())
-}
+// Profile functionality is now handled by the profiles.rs module
+// These functions have been moved to ProfileManager implementation

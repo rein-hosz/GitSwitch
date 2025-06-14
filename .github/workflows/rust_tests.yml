@@ -1,14 +1,14 @@
-name: Rust Tests
+name: Comprehensive Tests
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "develop"]
     paths:
       - "src/**"
       - "tests/**"
       - "Cargo.toml"
       - "Cargo.lock"
-      - ".github/workflows/**" # Trigger on workflow changes as well
+      - ".github/workflows/rust_tests.yml"
   pull_request:
     branches: ["main"]
     paths:
@@ -16,30 +16,62 @@ on:
       - "tests/**"
       - "Cargo.toml"
       - "Cargo.lock"
-      - ".github/workflows/**"
+      - ".github/workflows/rust_tests.yml"
 
 env:
   CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
 
 jobs:
   test:
-    name: Test on ${{ matrix.os }}
+    name: Test on ${{ matrix.os }} with Rust ${{ matrix.rust }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        rust: [stable, beta]
+        include:
+          - os: ubuntu-latest
+            rust: nightly
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Set up Rust
-        uses: actions-rs/toolchain@v1
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@v1
         with:
-          toolchain: stable
-          override: true
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+
+      - name: Cache cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ matrix.rust }}-
+
+      - name: Install system dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev git openssh-client
+
+      - name: Install system dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install git openssh
 
       - name: Ensure ssh-keygen is available (Windows)
         if: runner.os == 'Windows'
+        shell: pwsh
         run: |
           $gitUsrBin = "C:\Program Files\Git\usr\bin"
           if (Test-Path $gitUsrBin) {
@@ -56,7 +88,45 @@ jobs:
             Write-Error "ssh-keygen not found in PATH. Please ensure Git for Windows is installed and its usr/bin directory is in PATH, or that OpenSSH is available via System32."
             exit 1
           }
-        shell: pwsh
 
-      - name: Run tests
-        run: cargo test --verbose
+      - name: Run unit tests
+        run: cargo test --verbose --lib
+
+      - name: Run integration tests
+        run: cargo test --verbose --test '*'
+
+      - name: Run comprehensive platform tests
+        run: cargo test --test comprehensive_platform_tests --verbose
+
+      - name: Build release binary
+        run: cargo build --release --verbose
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev git openssh-client
+
+      - name: Generate coverage
+        run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: lcov.info
+          fail_ci_if_error: false

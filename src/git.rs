@@ -171,6 +171,7 @@ pub fn get_local_config_key(key: &str) -> Result<String> {
 }
 
 /// Set global git config for a specific key-value pair
+#[allow(dead_code)]
 pub fn set_global_config_key(key: &str, value: &str) -> Result<()> {
     let output = run_command_with_full_output("git", &["config", "--global", key, value], None)?;
     if !output.status.success() {
@@ -185,6 +186,7 @@ pub fn set_global_config_key(key: &str, value: &str) -> Result<()> {
 }
 
 /// Get global git config for a specific key
+#[allow(dead_code)]
 pub fn get_global_config_key(key: &str) -> Result<String> {
     let output = run_command_with_full_output("git", &["config", "--global", key], None)?;
     if !output.status.success() {

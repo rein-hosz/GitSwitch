@@ -94,6 +94,7 @@ pub enum GitSwitchError {
     GitNotInstalled,
 
     #[error("Keyring error: {message}")]
+    #[allow(dead_code)]
     Keyring { message: String },
 
     #[error("Backup operation failed: {message}")]
@@ -103,6 +104,7 @@ pub enum GitSwitchError {
     RestoreFailed { message: String },
 
     #[error("Migration failed: {message}")]
+    #[allow(dead_code)]
     MigrationFailed { message: String },
 
     #[error("Serialization error: {0}")]

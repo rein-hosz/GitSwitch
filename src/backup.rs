@@ -157,6 +157,7 @@ pub fn import_accounts(import_path: &Path, merge: bool) -> Result<()> {
 }
 
 /// Clean up sensitive data from memory
+#[allow(dead_code)]
 pub fn secure_cleanup() {
     // This function can be called to ensure sensitive data is properly cleared
     // The zeroize crate helps with this

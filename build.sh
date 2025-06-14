@@ -1,51 +1,88 @@
 #!/bin/bash
 set -e
 
+# GitSwitch Build Script for Linux/Unix platforms
+# Supports building DEB, RPM, and tarball packages
+
+# Color codes for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Print colored output
+print_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
+print_success() { echo -e "${GREEN}✅ $1${NC}"; }
+print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
+print_error() { echo -e "${RED}❌ $1${NC}"; }
+print_header() { echo -e "${CYAN}🔨 $1${NC}"; }
+
 # Default to build nothing unless specified
 BUILD_DEB=0
 BUILD_RPM=0
 BUILD_TARBALL=0
 BUILD_ALL=0
 VERSION_ARG="" # Store the version passed via --version
+SKIP_TESTS=0
+CLEAN_BUILD=0
 
 # Function to show usage
 show_usage() {
-  echo "Usage: $0 [options] [--version <VERSION_STRING>]"
-  echo "Options:"
-  echo "  --all      Build all package types (deb, rpm, tarball)"
-  echo "  --deb      Build Debian package"
-  echo "  --rpm      Build RPM package"
-  echo "  --tarball  Build tar.gz package"
-  echo "  --version  Specify the version string (e.g., v0.1.0). Defaults to git describe or Cargo.toml."
-  echo "  --help     Show this help message"
+  echo -e "${CYAN}GitSwitch Build Script${NC}"
   echo ""
-  echo "Example: $0 --deb --rpm --version v0.2.0"
+  echo "Usage: $0 [options] [--version <VERSION_STRING>]"
+  echo ""
+  echo -e "${YELLOW}Package Options:${NC}"
+  echo "  --all           Build all package types (deb, rpm, tarball)"
+  echo "  --deb           Build Debian package"
+  echo "  --rpm           Build RPM package"
+  echo "  --tarball       Build tar.gz package"
+  echo ""
+  echo -e "${YELLOW}Build Options:${NC}"
+  echo "  --version <V>   Specify the version string (e.g., v0.1.0)"
+  echo "  --skip-tests    Skip running tests before building"
+  echo "  --clean         Clean build (removes target directory)"
+  echo ""
+  echo -e "${YELLOW}Other Options:${NC}"
+  echo "  --help          Show this help message"
+  echo ""
+  echo -e "${GREEN}Examples:${NC}"
+  echo "  $0 --deb --rpm --version v0.2.0"
+  echo "  $0 --all --clean"
+  echo "  $0 --tarball --skip-tests"
 }
 
 # Parse command line arguments
 while [ "$1" != "" ]; do
   case $1 in
-    --all )      BUILD_ALL=1
-                 ;;
-    --deb )      BUILD_DEB=1
-                 ;;
-    --rpm )      BUILD_RPM=1
-                 ;;
-    --tarball )  BUILD_TARBALL=1
-                 ;;
-    --version )  shift # Consume --version
-                 if [ -z "$1" ]; then
-                   echo "Error: --version requires an argument."
-                   show_usage
-                   exit 1
-                 fi
-                 VERSION_ARG="$1" # Set version argument
-                 ;;
-    --help )     show_usage
-                 exit
-                 ;;
-    * )          show_usage
-                 exit 1
+    --all )         BUILD_ALL=1
+                    ;;
+    --deb )         BUILD_DEB=1
+                    ;;
+    --rpm )         BUILD_RPM=1
+                    ;;
+    --tarball )     BUILD_TARBALL=1
+                    ;;
+    --skip-tests )  SKIP_TESTS=1
+                    ;;
+    --clean )       CLEAN_BUILD=1
+                    ;;
+    --version )     shift # Consume --version
+                    if [ -z "$1" ]; then
+                      print_error "--version requires an argument."
+                      show_usage
+                      exit 1
+                    fi
+                    VERSION_ARG="$1" # Set version argument
+                    ;;
+    --help )        show_usage
+                    exit
+                    ;;
+    * )             print_error "Unknown option: $1"
+                    show_usage
+                    exit 1
   esac
   shift
 done
@@ -57,29 +94,47 @@ if [ $BUILD_ALL -eq 1 ]; then
   BUILD_TARBALL=1
 fi
 
+# Check if any build option was specified
+if [ $BUILD_DEB -eq 0 ] && [ $BUILD_RPM -eq 0 ] && [ $BUILD_TARBALL -eq 0 ]; then
+  print_error "No build type specified. Use --all, --deb, --rpm, or --tarball"
+  show_usage
+  exit 1
+fi
+
+print_header "GitSwitch Build Process Starting"
+
+# Clean build if requested
+if [ $CLEAN_BUILD -eq 1 ]; then
+  print_info "Cleaning previous build artifacts..."
+  if [ -d "target" ]; then
+    rm -rf target
+    print_success "Build directory cleaned"
+  fi
+fi
+
 # Determine final version
 VERSION=""
 if [ -n "$VERSION_ARG" ]; then
   VERSION="$VERSION_ARG"
-  echo "Using provided version: $VERSION"
+  print_info "Using provided version: $VERSION"
 else
-  echo "Attempting to determine version automatically..."
+  print_info "Attempting to determine version automatically..."
   if command -v git &> /dev/null && git rev-parse --is-inside-work-tree &> /dev/null; then
     VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
     if [ -n "$VERSION" ]; then
-      echo "Using version from git tag: $VERSION"
+      print_success "Using version from git tag: $VERSION"
     fi
   fi
   if [ -z "$VERSION" ] && [ -f Cargo.toml ]; then
     # Try to get version from Cargo.toml, ensure it starts with 'v'
-    CARGO_VERSION_RAW=$(grep '^[package]' -A 5 Cargo.toml | grep '^version *=' | sed 's/version *= *"\\([^"]*\\)"$/\\1/' || grep '^version *=' Cargo.toml | sed 's/version *= *"\\([^"]*\\)"$/\\1/')
+    CARGO_VERSION_RAW=$(grep '^version' Cargo.toml | head -1 | sed 's/version *= *"\\([^"]*\\)".*/\\1/')
     if [ -n "$CARGO_VERSION_RAW" ]; then
       if [[ "$CARGO_VERSION_RAW" == v* ]]; then
         VERSION="$CARGO_VERSION_RAW"
       else
         VERSION="v$CARGO_VERSION_RAW"
       fi
-      echo "Using version from Cargo.toml: $VERSION (raw: $CARGO_VERSION_RAW)"
+      print_success "Using version from Cargo.toml: $VERSION (raw: $CARGO_VERSION_RAW)"
     fi
   fi
   if [ -z "$VERSION" ]; then

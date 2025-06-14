@@ -7,31 +7,6 @@ pub fn generate_completions(shell: Shell, cmd: &mut Command) {
     generate(shell, cmd, "git-switch", &mut io::stdout());
 }
 
-/// Generate completion script for bash
-pub fn generate_bash(cmd: &mut Command) {
-    generate_completions(Shell::Bash, cmd);
-}
-
-/// Generate completion script for zsh
-pub fn generate_zsh(cmd: &mut Command) {
-    generate_completions(Shell::Zsh, cmd);
-}
-
-/// Generate completion script for fish
-pub fn generate_fish(cmd: &mut Command) {
-    generate_completions(Shell::Fish, cmd);
-}
-
-/// Generate completion script for PowerShell
-pub fn generate_powershell(cmd: &mut Command) {
-    generate_completions(Shell::PowerShell, cmd);
-}
-
-/// Generate completion script for Elvish
-pub fn generate_elvish(cmd: &mut Command) {
-    generate_completions(Shell::Elvish, cmd);
-}
-
 /// Print installation instructions for each shell
 pub fn print_installation_instructions(shell: Shell) {
     match shell {

@@ -100,6 +100,7 @@ pub fn run_command(command_str: &str, args: &[&str], current_dir: Option<&Path>)
 }
 
 /// Runs a command and returns its output (stdout, stderr, status).
+#[allow(dead_code)]
 pub fn run_command_with_output(
     command_str: &str,
     args: &[&str],

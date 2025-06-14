@@ -435,10 +435,7 @@ pub fn use_account_globally(config: &Config, name: &str) -> Result<()> {
         name: name.to_string(),
     })?;
 
-    println!(
-        "🔄 Switching to account '{}'",
-        account.name.cyan()
-    );
+    println!("🔄 Switching to account '{}'", account.name.cyan());
 
     git::set_global_config(&account.username, &account.email)?;
 
@@ -530,9 +527,7 @@ pub fn handle_account_subcommand(config: &Config, name: &str) -> Result<()> {
     let expanded_key_path = utils::expand_path(&account.ssh_key_path)?;
     if expanded_key_path.exists() {
         git::set_ssh_command(&account.ssh_key_path)?;
-        println!(
-            "🔑 SSH configuration updated for this repository"
-        );
+        println!("🔑 SSH configuration updated for this repository");
     }
 
     // Record repository usage analytics

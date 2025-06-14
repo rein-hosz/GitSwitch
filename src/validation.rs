@@ -290,7 +290,10 @@ fn verify_ssh_key_pair(private_key_path: &Path, public_key_path: &Path) -> Resul
             let gen_parts: Vec<&str> = generated_public.split_whitespace().take(2).collect();
             let stored_parts: Vec<&str> = stored_public.split_whitespace().take(2).collect();
 
-            if gen_parts.len() >= 2 && stored_parts.len() >= 2 && (gen_parts[0] != stored_parts[0] || gen_parts[1] != stored_parts[1]) {
+            if gen_parts.len() >= 2
+                && stored_parts.len() >= 2
+                && (gen_parts[0] != stored_parts[0] || gen_parts[1] != stored_parts[1])
+            {
                 return Err(GitSwitchError::InvalidSshKey {
                     message: "Private and public keys do not match".to_string(),
                 });

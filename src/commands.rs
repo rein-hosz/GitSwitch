@@ -436,8 +436,7 @@ pub fn use_account_globally(config: &Config, name: &str) -> Result<()> {
     })?;
 
     println!(
-        "{} Switching to account '{}'",
-        "🔄".to_string(),
+        "🔄 Switching to account '{}'",
         account.name.cyan()
     );
 
@@ -446,7 +445,7 @@ pub fn use_account_globally(config: &Config, name: &str) -> Result<()> {
     let expanded_key_path = utils::expand_path(&account.ssh_key_path)?;
     if expanded_key_path.exists() {
         ssh::add_ssh_key(&account.ssh_key_path)?;
-        println!("{} SSH key loaded", "🔑".to_string());
+        println!("🔑 SSH key loaded");
     }
 
     // Record usage analytics
@@ -468,7 +467,7 @@ pub fn remove_account(config: &mut Config, name: &str, no_prompt: bool) -> Resul
 
     if !no_prompt {
         let confirm = Confirm::with_theme(&dialoguer::theme::ColorfulTheme::default())
-            .with_prompt(&format!("Remove account '{}'?", name.red()))
+            .with_prompt(format!("Remove account '{}'?", name.red()))
             .default(false)
             .interact()?;
 
@@ -502,7 +501,7 @@ pub fn remove_account(config: &mut Config, name: &str, no_prompt: bool) -> Resul
             let expanded_key_path = utils::expand_path(&account.ssh_key_path)?;
             if expanded_key_path.exists() {
                 fs::remove_file(&expanded_key_path)?;
-                println!("{} SSH key file removed", "🗑️".to_string());
+                println!("🗑️ SSH key file removed");
             }
         }
     }
@@ -522,8 +521,7 @@ pub fn handle_account_subcommand(config: &Config, name: &str) -> Result<()> {
     }
 
     println!(
-        "{} Applying account '{}' to current repository",
-        "🔧".to_string(),
+        "🔧 Applying account '{}' to current repository",
         account.name.cyan()
     );
 
@@ -533,8 +531,7 @@ pub fn handle_account_subcommand(config: &Config, name: &str) -> Result<()> {
     if expanded_key_path.exists() {
         git::set_ssh_command(&account.ssh_key_path)?;
         println!(
-            "{} SSH configuration updated for this repository",
-            "🔑".to_string()
+            "🔑 SSH configuration updated for this repository"
         );
     }
 
@@ -629,7 +626,7 @@ pub fn handle_whoami_subcommand(config: &Config) -> Result<()> {
 
     // Show global config
     if let Ok((global_name, global_email)) = git::get_global_config() {
-        println!("\n{} Global Configuration:", "🌍".to_string());
+        println!("\n🌍 Global Configuration:");
         println!("  Name: {}", global_name);
         println!("  Email: {}", global_email);
 
@@ -656,7 +653,7 @@ pub fn handle_whoami_subcommand(config: &Config) -> Result<()> {
     // Show local config if in a repository
     if git::is_in_git_repository()? {
         if let Ok((local_name, local_email)) = git::get_local_config() {
-            println!("\n{} Repository Configuration:", "📁".to_string());
+            println!("\n📁 Repository Configuration:");
             println!("  Name: {}", local_name);
             println!("  Email: {}", local_email);
 
@@ -681,7 +678,7 @@ pub fn handle_whoami_subcommand(config: &Config) -> Result<()> {
 
         // Show remote URL
         if let Ok(remote_url) = git::get_remote_url("origin") {
-            println!("\n{} Remote URL:", "🔗".to_string());
+            println!("\n🔗 Remote URL:");
             println!("  {}", remote_url);
         }
     } else {
@@ -725,7 +722,7 @@ pub fn handle_auth_test_subcommand(config: &Config) -> Result<()> {
 
 fn test_ssh_connection(host: &str) -> Result<()> {
     let output = std::process::Command::new("ssh")
-        .args(&[
+        .args([
             "-T",
             "-o",
             "ConnectTimeout=5",

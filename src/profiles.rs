@@ -33,7 +33,7 @@ impl ProfileManager {
             return Ok(HashMap::new());
         }
 
-        let content = std::fs::read_to_string(&profiles_path).map_err(|e| GitSwitchError::Io(e))?;
+        let content = std::fs::read_to_string(&profiles_path).map_err(GitSwitchError::Io)?;
 
         let profiles: HashMap<String, Profile> = toml::from_str(&content)
             .map_err(|e| GitSwitchError::SerializationError(e.to_string()))?;
@@ -46,13 +46,13 @@ impl ProfileManager {
 
         // Create parent directory if it doesn't exist
         if let Some(parent) = profiles_path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| GitSwitchError::Io(e))?;
+            std::fs::create_dir_all(parent).map_err(GitSwitchError::Io)?;
         }
 
         let content = toml::to_string_pretty(&self.profiles)
             .map_err(|e| GitSwitchError::SerializationError(e.to_string()))?;
 
-        std::fs::write(&profiles_path, content).map_err(|e| GitSwitchError::Io(e))?;
+        std::fs::write(&profiles_path, content).map_err(GitSwitchError::Io)?;
 
         Ok(())
     }

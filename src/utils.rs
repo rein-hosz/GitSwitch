@@ -6,13 +6,12 @@ use std::process::{Command, Output};
 
 /// Expands a path that may start with '~' to an absolute path.
 pub fn expand_path(path_str: &str) -> Result<PathBuf> {
-    if path_str.starts_with('~') {
+    if let Some(rest) = path_str.strip_prefix('~') {
         if let Some(home_dir) = home::home_dir() {
             let mut path = home_dir;
             if path_str.len() > 1 {
                 // Handles "~/" or "~something"
                 // Skip "~" or "~/"
-                let rest = &path_str[1..];
                 if rest.starts_with('/') || rest.starts_with('\\') {
                     if rest.len() > 1 {
                         path.push(&rest[1..]);

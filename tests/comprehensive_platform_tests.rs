@@ -182,25 +182,25 @@ fn setup_git_repo(
     temp_home_path: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     get_git_command(temp_home_path)
-        .args(&["init"])
+        .args(["init"])
         .current_dir(repo_path)
         .assert()
         .success();
 
     get_git_command(temp_home_path)
-        .args(&["config", "user.name", "Test User"])
+        .args(["config", "user.name", "Test User"])
         .current_dir(repo_path)
         .assert()
         .success();
 
     get_git_command(temp_home_path)
-        .args(&["config", "user.email", "test@example.com"])
+        .args(["config", "user.email", "test@example.com"])
         .current_dir(repo_path)
         .assert()
         .success();
 
     get_git_command(temp_home_path)
-        .args(&[
+        .args([
             "remote",
             "add",
             "origin",
@@ -221,7 +221,7 @@ fn add_test_account(
     email: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = get_git_switch_command(temp_home_path)?;
-    cmd.args(&["add", name, username, email]);
+    cmd.args(["add", name, username, email]);
     cmd.assert().success();
     Ok(())
 }
@@ -245,7 +245,7 @@ fn test_add_account_basic() -> Result<(), Box<dyn std::error::Error>> {
     print_command_info(&["add", "test-basic", "basicuser", "basic@example.com"]);
 
     let mut cmd = get_git_switch_command(temp_home_path)?;
-    cmd.args(&["add", "test-basic", "basicuser", "basic@example.com"]);
+    cmd.args(["add", "test-basic", "basicuser", "basic@example.com"]);
 
     cmd.assert()
         .success()
@@ -275,7 +275,7 @@ fn test_add_account_with_spaces() -> Result<(), Box<dyn std::error::Error>> {
     print_command_info(&["add", "Test User Account", "testuser", "test@example.com"]);
 
     let mut cmd = get_git_switch_command(temp_home_path)?;
-    cmd.args(&["add", "Test User Account", "testuser", "test@example.com"]);
+    cmd.args(["add", "Test User Account", "testuser", "test@example.com"]);
 
     cmd.assert()
         .success()
@@ -296,7 +296,7 @@ fn test_add_account_with_provider() -> Result<(), Box<dyn std::error::Error>> {
 
     for (provider, emoji) in providers {
         let mut cmd = get_git_switch_command(temp_home_path)?;
-        cmd.args(&[
+        cmd.args([
             "add",
             &format!("{}-account", provider),
             &format!("{}user", provider),
@@ -320,7 +320,7 @@ fn test_list_accounts_empty() -> Result<(), Box<dyn std::error::Error>> {
     let temp_home_path = temp_dir.path();
 
     let mut cmd = get_git_switch_command(temp_home_path)?;
-    cmd.args(&["list"]);
+    cmd.args(["list"]);
 
     cmd.assert()
         .success()
@@ -340,7 +340,7 @@ fn test_list_accounts_simple() -> Result<(), Box<dyn std::error::Error>> {
     add_test_account(temp_home_path, "work", "j.doe", "john.doe@work.com")?;
 
     let mut cmd = get_git_switch_command(temp_home_path)?;
-    cmd.args(&["list"]);
+    cmd.args(["list"]);
 
     cmd.assert()
         .success()
@@ -359,7 +359,7 @@ fn test_list_accounts_detailed() -> Result<(), Box<dyn std::error::Error>> {
 
     // Add test account with GitHub provider
     let mut cmd = get_git_switch_command(temp_home_path)?;
-    cmd.args(&[
+    cmd.args([
         "add",
         "github-test",
         "githubuser",
@@ -371,7 +371,7 @@ fn test_list_accounts_detailed() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test detailed list
     let mut cmd_list = get_git_switch_command(temp_home_path)?;
-    cmd_list.args(&["list", "--detailed"]);
+    cmd_list.args(["list", "--detailed"]);
 
     cmd_list
         .assert()
@@ -402,7 +402,7 @@ fn test_use_account_globally() -> Result<(), Box<dyn std::error::Error>> {
 
     // Use account globally
     let mut cmd_use = get_git_switch_command(temp_home_path)?;
-    cmd_use.args(&["use", "global-test"]);
+    cmd_use.args(["use", "global-test"]);
     cmd_use
         .assert()
         .success()
@@ -410,14 +410,14 @@ fn test_use_account_globally() -> Result<(), Box<dyn std::error::Error>> {
 
     // Verify global git config
     let mut git_cmd = get_git_command(temp_home_path);
-    git_cmd.args(&["config", "--global", "user.name"]);
+    git_cmd.args(["config", "--global", "user.name"]);
     git_cmd
         .assert()
         .success()
         .stdout(predicate::str::contains("globaluser"));
 
     let mut git_cmd_email = get_git_command(temp_home_path);
-    git_cmd_email.args(&["config", "--global", "user.email"]);
+    git_cmd_email.args(["config", "--global", "user.email"]);
     git_cmd_email
         .assert()
         .success()
@@ -441,7 +441,7 @@ fn test_remove_account() -> Result<(), Box<dyn std::error::Error>> {
 
     // Remove account with prompts
     let mut cmd_remove = get_git_switch_command(temp_home_path)?;
-    cmd_remove.args(&["remove", "remove-test", "--no-prompt"]);
+    cmd_remove.args(["remove", "remove-test", "--no-prompt"]);
     cmd_remove
         .assert()
         .success()
@@ -449,7 +449,7 @@ fn test_remove_account() -> Result<(), Box<dyn std::error::Error>> {
 
     // Verify account is gone
     let mut cmd_list = get_git_switch_command(temp_home_path)?;
-    cmd_list.args(&["list"]);
+    cmd_list.args(["list"]);
     cmd_list
         .assert()
         .success()
@@ -479,7 +479,7 @@ fn test_account_subcommand_local_repo() -> Result<(), Box<dyn std::error::Error>
     // Apply account to repository
     let mut cmd_account = get_git_switch_command(temp_home_path)?;
     cmd_account.current_dir(repo_dir.path());
-    cmd_account.args(&["account", "local-account"]);
+    cmd_account.args(["account", "local-account"]);
     cmd_account
         .assert()
         .success()
@@ -490,7 +490,7 @@ fn test_account_subcommand_local_repo() -> Result<(), Box<dyn std::error::Error>
     // Verify local git config
     let mut git_cmd = get_git_command(temp_home_path);
     git_cmd.current_dir(repo_dir.path());
-    git_cmd.args(&["config", "user.name"]);
+    git_cmd.args(["config", "user.name"]);
     git_cmd
         .assert()
         .success()
@@ -509,7 +509,7 @@ fn test_remote_https_to_ssh() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut cmd = get_git_switch_command(temp_home_path)?;
     cmd.current_dir(repo_dir.path());
-    cmd.args(&["remote", "--ssh"]);
+    cmd.args(["remote", "--ssh"]);
     cmd.assert().success().stdout(predicate::str::contains(
         "Remote URL updated to: git@github.com:user/repo.git",
     ));
@@ -527,7 +527,7 @@ fn test_remote_ssh_to_https() -> Result<(), Box<dyn std::error::Error>> {
 
     // Set SSH URL first
     get_git_command(temp_home_path)
-        .args(&[
+        .args([
             "remote",
             "set-url",
             "origin",
@@ -539,7 +539,7 @@ fn test_remote_ssh_to_https() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut cmd = get_git_switch_command(temp_home_path)?;
     cmd.current_dir(repo_dir.path());
-    cmd.args(&["remote", "--https"]);
+    cmd.args(["remote", "--https"]);
     cmd.assert().success().stdout(predicate::str::contains(
         "Remote URL updated to: https://github.com/user/repo.git",
     ));
@@ -564,13 +564,13 @@ fn test_whoami_command() -> Result<(), Box<dyn std::error::Error>> {
     // Set account for repository
     let mut cmd_account = get_git_switch_command(temp_home_path)?;
     cmd_account.current_dir(repo_dir.path());
-    cmd_account.args(&["account", "whoami-test"]);
+    cmd_account.args(["account", "whoami-test"]);
     cmd_account.assert().success();
 
     // Test whoami in repository
     let mut cmd_whoami = get_git_switch_command(temp_home_path)?;
     cmd_whoami.current_dir(repo_dir.path());
-    cmd_whoami.args(&["whoami"]);
+    cmd_whoami.args(["whoami"]);
     cmd_whoami
         .assert()
         .success()
@@ -590,7 +590,7 @@ fn test_template_list() -> Result<(), Box<dyn std::error::Error>> {
     let temp_home_path = temp_dir.path();
 
     let mut cmd = get_git_switch_command(temp_home_path)?;
-    cmd.args(&["template", "list"]);
+    cmd.args(["template", "list"]);
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("Available account templates"))
@@ -606,7 +606,7 @@ fn test_template_account_creation() -> Result<(), Box<dyn std::error::Error>> {
     let temp_home_path = temp_dir.path();
 
     let mut cmd = get_git_switch_command(temp_home_path)?;
-    cmd.args(&[
+    cmd.args([
         "template",
         "use",
         "github",
@@ -620,7 +620,7 @@ fn test_template_account_creation() -> Result<(), Box<dyn std::error::Error>> {
 
     // Verify the account was created
     let mut list_cmd = get_git_switch_command(temp_home_path)?;
-    list_cmd.args(&["list", "--detailed"]);
+    list_cmd.args(["list", "--detailed"]);
     list_cmd
         .assert()
         .success()
@@ -643,7 +643,7 @@ fn test_auth_test_command() -> Result<(), Box<dyn std::error::Error>> {
     add_test_account(temp_home_path, "auth-test", "authuser", "auth@test.com")?;
 
     let mut cmd_auth = get_git_switch_command(temp_home_path)?;
-    cmd_auth.args(&["auth", "test"]);
+    cmd_auth.args(["auth", "test"]);
     cmd_auth
         .assert()
         .success()
@@ -668,7 +668,7 @@ fn test_backup_and_restore() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create backup
     let mut cmd_backup = get_git_switch_command(temp_home_path)?;
-    cmd_backup.args(&[
+    cmd_backup.args([
         "backup",
         "create",
         "--output",
@@ -687,7 +687,7 @@ fn test_backup_and_restore() -> Result<(), Box<dyn std::error::Error>> {
     let temp_restore_home = temp_restore_dir.path();
 
     let mut cmd_restore = get_git_switch_command(temp_restore_home)?;
-    cmd_restore.args(&["backup", "restore", backup_file.to_str().unwrap()]);
+    cmd_restore.args(["backup", "restore", backup_file.to_str().unwrap()]);
     cmd_restore
         .assert()
         .success()
@@ -695,7 +695,7 @@ fn test_backup_and_restore() -> Result<(), Box<dyn std::error::Error>> {
 
     // Verify accounts were restored
     let mut cmd_list = get_git_switch_command(temp_restore_home)?;
-    cmd_list.args(&["list"]);
+    cmd_list.args(["list"]);
     cmd_list
         .assert()
         .success()
@@ -721,7 +721,7 @@ fn test_export_import_accounts() -> Result<(), Box<dyn std::error::Error>> {
 
     // Export accounts
     let mut cmd_export = get_git_switch_command(temp_home_path)?;
-    cmd_export.args(&[
+    cmd_export.args([
         "backup",
         "export",
         export_file.to_str().unwrap(),
@@ -740,7 +740,7 @@ fn test_export_import_accounts() -> Result<(), Box<dyn std::error::Error>> {
     let temp_import_home = temp_import_dir.path();
 
     let mut cmd_import = get_git_switch_command(temp_import_home)?;
-    cmd_import.args(&["backup", "import", export_file.to_str().unwrap()]);
+    cmd_import.args(["backup", "import", export_file.to_str().unwrap()]);
     cmd_import
         .assert()
         .success()
@@ -748,7 +748,7 @@ fn test_export_import_accounts() -> Result<(), Box<dyn std::error::Error>> {
 
     // Verify account was imported
     let mut cmd_list = get_git_switch_command(temp_import_home)?;
-    cmd_list.args(&["list"]);
+    cmd_list.args(["list"]);
     cmd_list
         .assert()
         .success()
@@ -772,7 +772,7 @@ fn test_repo_discover() -> Result<(), Box<dyn std::error::Error>> {
     setup_git_repo(&test_repo_dir, temp_home_path)?;
 
     let mut cmd = get_git_switch_command(temp_home_path)?;
-    cmd.args(&["repo", "discover", temp_dir.path().to_str().unwrap()]);
+    cmd.args(["repo", "discover", temp_dir.path().to_str().unwrap()]);
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("Discovery Summary"));
@@ -786,7 +786,7 @@ fn test_repo_list() -> Result<(), Box<dyn std::error::Error>> {
     let temp_home_path = temp_dir.path();
 
     let mut cmd = get_git_switch_command(temp_home_path)?;
-    cmd.args(&["repo", "list"]);
+    cmd.args(["repo", "list"]);
     cmd.assert().success();
 
     Ok(())
@@ -803,12 +803,12 @@ fn test_analytics_commands() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test analytics show
     let mut cmd_show = get_git_switch_command(temp_home_path)?;
-    cmd_show.args(&["analytics", "show"]);
+    cmd_show.args(["analytics", "show"]);
     cmd_show.assert().success();
 
     // Test analytics clear
     let mut cmd_clear = get_git_switch_command(temp_home_path)?;
-    cmd_clear.args(&["analytics", "clear"]);
+    cmd_clear.args(["analytics", "clear"]);
     cmd_clear.assert().success();
 
     Ok(())
@@ -824,7 +824,7 @@ fn test_detect_command() -> Result<(), Box<dyn std::error::Error>> {
     let temp_home_path = temp_dir.path();
 
     let mut cmd = get_git_switch_command(temp_home_path)?;
-    cmd.args(&["detect"]);
+    cmd.args(["detect"]);
     cmd.assert().success();
 
     Ok(())
@@ -844,7 +844,7 @@ fn test_completions_generation() -> Result<(), Box<dyn std::error::Error>> {
 
     for shell in shells {
         let mut cmd = get_git_switch_command(temp_home_path)?;
-        cmd.args(&["completions", shell]);
+        cmd.args(["completions", shell]);
         cmd.assert().success();
     }
 
@@ -858,7 +858,7 @@ fn test_man_page_generation() -> Result<(), Box<dyn std::error::Error>> {
     let man_dir = temp_dir.path().join("man");
 
     let mut cmd = get_git_switch_command(temp_home_path)?;
-    cmd.args(&["man", "--output-dir", man_dir.to_str().unwrap()]);
+    cmd.args(["man", "--output-dir", man_dir.to_str().unwrap()]);
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("Generated man page"));
@@ -877,7 +877,7 @@ fn test_profile_commands() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test profile list (shows no profiles found message)
     let mut cmd_list = get_git_switch_command(temp_home_path)?;
-    cmd_list.args(&["profile", "list"]);
+    cmd_list.args(["profile", "list"]);
     cmd_list
         .assert()
         .success()
@@ -904,7 +904,7 @@ fn test_platform_specific_home_directory() -> Result<(), Box<dyn std::error::Err
     )?;
 
     let mut cmd = get_git_switch_command(temp_home_path)?;
-    cmd.args(&["list"]);
+    cmd.args(["list"]);
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("platform-test"));
@@ -926,7 +926,7 @@ fn test_ssh_key_path_platform_handling() -> Result<(), Box<dyn std::error::Error
     )?;
 
     let mut cmd = get_git_switch_command(temp_home_path)?;
-    cmd.args(&["list", "--detailed"]);
+    cmd.args(["list", "--detailed"]);
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("SSH Key: Found"))
@@ -960,7 +960,7 @@ fn test_error_duplicate_account() -> Result<(), Box<dyn std::error::Error>> {
     print_command_info(&["add", "duplicate-test", "user2", "user2@test.com"]);
     // Try to add same account again
     let mut cmd = get_git_switch_command(temp_home_path)?;
-    cmd.args(&["add", "duplicate-test", "user2", "user2@test.com"]);
+    cmd.args(["add", "duplicate-test", "user2", "user2@test.com"]);
     cmd.assert()
         .failure()
         .stderr(predicate::str::contains("already exists"));
@@ -975,7 +975,7 @@ fn test_error_account_not_found() -> Result<(), Box<dyn std::error::Error>> {
     let temp_home_path = temp_dir.path();
 
     let mut cmd = get_git_switch_command(temp_home_path)?;
-    cmd.args(&["use", "nonexistent-account"]);
+    cmd.args(["use", "nonexistent-account"]);
     cmd.assert().failure().stderr(predicate::str::contains(
         "Account 'nonexistent-account' not found",
     ));
@@ -989,7 +989,7 @@ fn test_error_invalid_email() -> Result<(), Box<dyn std::error::Error>> {
     let temp_home_path = temp_dir.path();
 
     let mut cmd = get_git_switch_command(temp_home_path)?;
-    cmd.args(&["add", "invalid-email-test", "user", "invalid-email"]);
+    cmd.args(["add", "invalid-email-test", "user", "invalid-email"]);
     cmd.assert()
         .failure()
         .stderr(predicate::str::contains("Invalid email"));
@@ -1037,7 +1037,7 @@ fn test_complete_workflow_personal_work() -> Result<(), Box<dyn std::error::Erro
     // Configure work repository
     let mut cmd_work = get_git_switch_command(temp_home_path)?;
     cmd_work.current_dir(&work_repo);
-    cmd_work.args(&["account", "work"]);
+    cmd_work.args(["account", "work"]);
     cmd_work.assert().success();
 
     print_separator();
@@ -1046,7 +1046,7 @@ fn test_complete_workflow_personal_work() -> Result<(), Box<dyn std::error::Erro
     // Configure personal repository
     let mut cmd_personal = get_git_switch_command(temp_home_path)?;
     cmd_personal.current_dir(&personal_repo);
-    cmd_personal.args(&["account", "personal"]);
+    cmd_personal.args(["account", "personal"]);
     cmd_personal.assert().success();
 
     print_separator();
@@ -1054,7 +1054,7 @@ fn test_complete_workflow_personal_work() -> Result<(), Box<dyn std::error::Erro
     // Verify configurations
     let mut git_work = get_git_command(temp_home_path);
     git_work.current_dir(&work_repo);
-    git_work.args(&["config", "user.email"]);
+    git_work.args(["config", "user.email"]);
     git_work
         .assert()
         .success()
@@ -1062,7 +1062,7 @@ fn test_complete_workflow_personal_work() -> Result<(), Box<dyn std::error::Erro
 
     let mut git_personal = get_git_command(temp_home_path);
     git_personal.current_dir(&personal_repo);
-    git_personal.args(&["config", "user.email"]);
+    git_personal.args(["config", "user.email"]);
     git_personal
         .assert()
         .success()
@@ -1084,17 +1084,17 @@ fn test_account_switching_workflow() -> Result<(), Box<dyn std::error::Error>> {
 
     // Use account1 globally
     let mut cmd = get_git_switch_command(temp_home_path)?;
-    cmd.args(&["use", "account1"]);
+    cmd.args(["use", "account1"]);
     cmd.assert().success();
 
     // Switch to account2
     let mut cmd = get_git_switch_command(temp_home_path)?;
-    cmd.args(&["use", "account2"]);
+    cmd.args(["use", "account2"]);
     cmd.assert().success();
 
     // Verify current global config
     let mut git_cmd = get_git_command(temp_home_path);
-    git_cmd.args(&["config", "--global", "user.email"]);
+    git_cmd.args(["config", "--global", "user.email"]);
     git_cmd
         .assert()
         .success()

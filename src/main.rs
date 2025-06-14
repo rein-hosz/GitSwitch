@@ -514,11 +514,9 @@ fn run_cli() -> Result<(), anyhow::Error> {
                     eprintln!("Error generating man pages: {}", e);
                     exit(1);
                 }
-            } else {
-                if let Err(e) = manpages::generate_man_page(&Cli::command()) {
-                    eprintln!("Error generating man page: {}", e);
-                    exit(1);
-                }
+            } else if let Err(e) = manpages::generate_man_page(&Cli::command()) {
+                eprintln!("Error generating man page: {}", e);
+                exit(1);
             }
             manpages::print_man_installation_instructions();
         }

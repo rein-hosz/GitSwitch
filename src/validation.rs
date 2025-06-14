@@ -78,7 +78,7 @@ pub fn validate_ssh_key_comprehensive(key_path: &Path) -> Result<()> {
     validate_ssh_key(key_path)?;
 
     // Enhanced validation
-    let key_content = std::fs::read_to_string(key_path).map_err(|e| GitSwitchError::Io(e))?;
+    let key_content = std::fs::read_to_string(key_path).map_err(GitSwitchError::Io)?;
 
     // Validate SSH private key content format
     validate_ssh_private_key_content(&key_content)?;
@@ -88,10 +88,10 @@ pub fn validate_ssh_key_comprehensive(key_path: &Path) -> Result<()> {
     let pub_key_path = Path::new(&pub_key_path);
 
     if pub_key_path.exists() {
-        validate_ssh_public_key_file(&pub_key_path)?;
+        validate_ssh_public_key_file(pub_key_path)?;
 
         // Verify key pair matches
-        verify_ssh_key_pair(key_path, &pub_key_path)?;
+        verify_ssh_key_pair(key_path, pub_key_path)?;
     } else {
         tracing::warn!("Public key file not found: {}", pub_key_path.display());
     }
@@ -220,7 +220,7 @@ fn validate_traditional_private_key(content: &str, begin: &str, end: &str) -> Re
 /// Validate SSH public key file
 #[allow(dead_code)]
 fn validate_ssh_public_key_file(pub_key_path: &Path) -> Result<()> {
-    let content = std::fs::read_to_string(pub_key_path).map_err(|e| GitSwitchError::Io(e))?;
+    let content = std::fs::read_to_string(pub_key_path).map_err(GitSwitchError::Io)?;
 
     validate_ssh_public_key_content(&content)
 }
@@ -284,18 +284,16 @@ fn verify_ssh_key_pair(private_key_path: &Path, public_key_path: &Path) -> Resul
         Ok(result) if result.status.success() => {
             let generated_public = String::from_utf8_lossy(&result.stdout);
             let stored_public =
-                std::fs::read_to_string(public_key_path).map_err(|e| GitSwitchError::Io(e))?;
+                std::fs::read_to_string(public_key_path).map_err(GitSwitchError::Io)?;
 
             // Compare the key parts (ignore comments)
-            let gen_parts: Vec<&str> = generated_public.trim().split_whitespace().take(2).collect();
-            let stored_parts: Vec<&str> = stored_public.trim().split_whitespace().take(2).collect();
+            let gen_parts: Vec<&str> = generated_public.split_whitespace().take(2).collect();
+            let stored_parts: Vec<&str> = stored_public.split_whitespace().take(2).collect();
 
-            if gen_parts.len() >= 2 && stored_parts.len() >= 2 {
-                if gen_parts[0] != stored_parts[0] || gen_parts[1] != stored_parts[1] {
-                    return Err(GitSwitchError::InvalidSshKey {
-                        message: "Private and public keys do not match".to_string(),
-                    });
-                }
+            if gen_parts.len() >= 2 && stored_parts.len() >= 2 && (gen_parts[0] != stored_parts[0] || gen_parts[1] != stored_parts[1]) {
+                return Err(GitSwitchError::InvalidSshKey {
+                    message: "Private and public keys do not match".to_string(),
+                });
             }
         }
         Ok(result) => {

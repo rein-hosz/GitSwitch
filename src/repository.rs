@@ -93,12 +93,11 @@ impl RepoManager {
 
     fn find_git_repositories(&self, path: &Path, max_depth: usize) -> Result<Vec<PathBuf>> {
         let mut repositories = Vec::new();
-        self.find_git_repositories_recursive(path, max_depth, 0, &mut repositories)?;
+        Self::find_git_repositories_recursive(path, max_depth, 0, &mut repositories)?;
         Ok(repositories)
     }
 
     fn find_git_repositories_recursive(
-        &self,
         path: &Path,
         max_depth: usize,
         current_depth: usize,
@@ -127,7 +126,7 @@ impl RepoManager {
                         .unwrap()
                         .starts_with('.')
                 {
-                    self.find_git_repositories_recursive(
+                    Self::find_git_repositories_recursive(
                         &entry_path,
                         max_depth,
                         current_depth + 1,
@@ -141,15 +140,15 @@ impl RepoManager {
     }
 
     fn analyze_repository(&self, repo_path: &Path) -> Result<DiscoveredRepo> {
-        let original_dir = std::env::current_dir().map_err(|e| GitSwitchError::Io(e))?;
+        let original_dir = std::env::current_dir().map_err(GitSwitchError::Io)?;
 
         // Change to repository directory
-        std::env::set_current_dir(repo_path).map_err(|e| GitSwitchError::Io(e))?;
+        std::env::set_current_dir(repo_path).map_err(GitSwitchError::Io)?;
 
         let result = self.analyze_current_repository(repo_path);
 
         // Restore original directory
-        std::env::set_current_dir(original_dir).map_err(|e| GitSwitchError::Io(e))?;
+        std::env::set_current_dir(original_dir).map_err(GitSwitchError::Io)?;
 
         result
     }
@@ -162,7 +161,7 @@ impl RepoManager {
 
         // Get last commit author
         let last_commit_author = std::process::Command::new("git")
-            .args(&["log", "-1", "--pretty=format:%an <%ae>"])
+            .args(["log", "-1", "--pretty=format:%an <%ae>"])
             .output()
             .ok()
             .and_then(|output| {
@@ -230,7 +229,7 @@ impl RepoManager {
             }
 
             if total_checks > 0 {
-                confidence = confidence * (matches as f32 / total_checks as f32);
+                confidence *= matches as f32 / total_checks as f32;
 
                 if confidence > best_confidence {
                     best_confidence = confidence;
@@ -431,15 +430,15 @@ impl RepoManager {
             }
         })?;
 
-        let original_dir = std::env::current_dir().map_err(|e| GitSwitchError::Io(e))?;
+        let original_dir = std::env::current_dir().map_err(GitSwitchError::Io)?;
 
         // Change to repository directory
-        std::env::set_current_dir(repo_path).map_err(|e| GitSwitchError::Io(e))?;
+        std::env::set_current_dir(repo_path).map_err(GitSwitchError::Io)?;
 
         let result = self.apply_account_config(account);
 
         // Restore original directory
-        std::env::set_current_dir(original_dir).map_err(|e| GitSwitchError::Io(e))?;
+        std::env::set_current_dir(original_dir).map_err(GitSwitchError::Io)?;
 
         result
     }
@@ -468,7 +467,7 @@ impl RepoManager {
 
         match output_path {
             Some(path) => {
-                std::fs::write(path, &report).map_err(|e| GitSwitchError::Io(e))?;
+                std::fs::write(path, &report).map_err(GitSwitchError::Io)?;
                 println!("{} Report saved to {}", "✓".green(), path.display());
             }
             None => {
@@ -482,13 +481,13 @@ impl RepoManager {
     fn create_report(&self) -> Result<String> {
         let mut report = String::new();
 
-        report.push_str(&format!("# Git Repository Analysis Report\n"));
+        report.push_str("# Git Repository Analysis Report\n");
         report.push_str(&format!(
             "Generated: {}\n\n",
             chrono::Utc::now().format("%Y-%m-%d %H:%M UTC")
         ));
 
-        report.push_str(&format!("## Summary\n"));
+        report.push_str("## Summary\n");
         report.push_str(&format!(
             "- Total repositories: {}\n",
             self.discovered_repos.len()
@@ -544,7 +543,7 @@ impl RepoManager {
                 ));
             }
 
-            report.push_str("\n");
+            report.push('\n');
         }
 
         Ok(report)

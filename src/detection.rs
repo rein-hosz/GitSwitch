@@ -38,8 +38,7 @@ fn url_matches_provider(url: &str, provider: &str) -> bool {
 pub fn suggest_account(config: &Config) -> Result<()> {
     if let Some(account_name) = detect_account_from_remote(config)? {
         println!(
-            "{} Detected account '{}' for this repository",
-            "💡".to_string(),
+            "💡 Detected account '{}' for this repository",
             account_name.cyan()
         );
         println!(

@@ -153,8 +153,8 @@ if [ -f Cargo.toml ]; then
   # Create a backup, then replace.
   cp Cargo.toml Cargo.toml.bak
   # sed pattern: match 'version = "..."', capture content, replace with new version.
-  # Works for version = "0.1.0"
-  sed -E "s/^(version\s*=\s*\").*(\".*)$/\\1$VERSION_NO_V\\2/" Cargo.toml.bak > Cargo.toml
+  # Works for version = "0.1.0" with or without comments
+  sed -E "s/^(version\s*=\s*\")[^\"]*(\".*)$/\\1$VERSION_NO_V\\2/" Cargo.toml.bak > Cargo.toml
   if [ $? -ne 0 ]; then
     echo "Error: Failed to update Cargo.toml version."
     mv Cargo.toml.bak Cargo.toml # Restore backup

@@ -144,7 +144,7 @@ if [[ -n "$VERSION_ARG" ]]; then
   VERSION="$VERSION_ARG"
   print_info "Using provided version: $VERSION"
 elif [[ -f "Cargo.toml" ]]; then
-  VERSION=$(grep '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/v\1/')
+  VERSION=$(grep '^version = ' Cargo.toml | sed 's/version = "\([^"]*\)".*/v\1/')
   print_success "Using version from Cargo.toml: $VERSION"
 elif command -v git &> /dev/null; then
   VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
@@ -171,7 +171,7 @@ print_header "Building git-switch version $VERSION for macOS"
 if [[ -f "Cargo.toml" ]]; then
   print_info "Updating Cargo.toml version to $VERSION_NO_V..."
   cp Cargo.toml Cargo.toml.bak
-  sed -i '' "s/^version = \".*\"/version = \"$VERSION_NO_V\"/" Cargo.toml
+  sed -i '' "s/^version = \"[^\"]*\"/version = \"$VERSION_NO_V\"/" Cargo.toml
   print_success "Cargo.toml version updated"
 fi
 

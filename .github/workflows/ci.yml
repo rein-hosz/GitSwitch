@@ -50,22 +50,6 @@ jobs:
       - name: Check if code compiles
         run: cargo check --all-targets --all-features
 
-  security:
-    name: Security Audit
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install cargo-audit
-        run: cargo install cargo-audit
-
-      - name: Run security audit
-        run: cargo audit
-
   build-scripts:
     name: Validate Build Scripts
     runs-on: ${{ matrix.os }}

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+  xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+
+  <?define ProductName = "GitSwitch" ?>
+  <!-- ProductVersion will be passed by the build script -->
+  <?define ProductVersion = "$(var.ProductVersion_WIX)" ?>
+  <?define Manufacturer = "GitSwitch Contributors" ?>
+  <!-- Generate a new GUID for your product and use it here -->
+  <?define UpgradeCode = "8C08B9A3-B04F-449A-9290-46E28E87A5B1" ?>
+
+  <Product Id="*" Name="$(var.ProductName)" Language="1033" Version="$(var.ProductVersion)" Manufacturer="$(var.Manufacturer)" UpgradeCode="$(var.UpgradeCode)">
+
+    <Package InstallerVersion="301" Compressed="yes" InstallScope="perMachine" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Feature Id="ProductFeature" Title="$(var.ProductName) Setup" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+      <ComponentRef Id="ApplicationShortcut" />
+      <ComponentRef Id="UpdatePath" />
+    </Feature>
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFilesFolder">
+        <Directory Id="INSTALLFOLDER" Name="$(var.ProductName)">
+          <!-- Component files will be installed here -->
+        </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="$(var.ProductName)"/>
+      </Directory>
+    </Directory>
+
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <Component Id="MainExecutable" Guid="A1B0D57C-75B9-4A7C-A49A-C8B3E0A1E2A7">
+        <File Id="GitSwitchExe" Source="target\release\git-switch.exe" KeyPath="yes" Vital="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ApplicationShortcut" Guid="F8A3C2D0-5D6C-4B1A-8C9F-0E1D2C3B4A5E">
+        <Shortcut Id="ApplicationStartMenuShortcut" Name="$(var.ProductName)" Description="GitSwitch - Git Profile Manager" Target="[#GitSwitchExe]" WorkingDirectory="INSTALLFOLDER"/>
+        <RemoveFolder Id="CleanupApplicationProgramsFolder" Directory="ApplicationProgramsFolder" On="uninstall"/>
+        <RegistryValue Root="HKCU" Key="Software\$(var.Manufacturer)\$(var.ProductName)" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+      </Component>
+    </DirectoryRef>
+
+    <Component Id="UpdatePath" Directory="INSTALLFOLDER" Guid="D9E8F7C6-B5A4-498D-8A7F-6E5D4C3B2A10">
+      <!-- Add INSTALLFOLDER to the system PATH -->
+      <Environment Id="PATH" Name="PATH" Value="[INSTALLFOLDER]" Permanent="no" Part="last" Action="set" System="yes" />
+    </Component>
+
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <UIRef Id="WixUI_InstallDir" />
+    <!-- Basic UI with directory selection -->
+    <UIRef Id="WixUI_ErrorProgressText" />
+    <!-- Provides text for error messages -->
+
+  </Product>
+</Wix>

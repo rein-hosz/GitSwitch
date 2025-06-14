@@ -204,89 +204,44 @@ fi
 
 # Create RPM package if requested
 if [ $BUILD_RPM -eq 1 ]; then
-  echo "Creating RPM package manually..."
-
-  # Get version from Cargo.toml (should be already updated by this script)
-  # VERSION_NO_V is already defined and is the numeric version string
-
-  # Create RPM build directory structure
-  mkdir -p target/rpm-build/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
-
-  # Create a source tarball for rpmbuild
-  RPM_SOURCE_DIR="target/rpm-build/SOURCES/$APP_NAME-${VERSION_NO_V}"
-  mkdir -p "$RPM_SOURCE_DIR/usr/bin"
-  mkdir -p "$RPM_SOURCE_DIR/usr/share/doc/$APP_NAME"
-  
-  echo "Copying $BINARY_PATH to $RPM_SOURCE_DIR/usr/bin/$APP_NAME"
-  cp "$BINARY_PATH" "$RPM_SOURCE_DIR/usr/bin/$APP_NAME"
-  
-  echo "Copying README.md to $RPM_SOURCE_DIR/usr/share/doc/$APP_NAME/"
-  cp README.md "$RPM_SOURCE_DIR/usr/share/doc/$APP_NAME/" 2>/dev/null || :
-  
-  echo "Copying LICENSE to $RPM_SOURCE_DIR/usr/share/doc/$APP_NAME/"
-  cp LICENSE "$RPM_SOURCE_DIR/usr/share/doc/$APP_NAME/" 2>/dev/null || :
-
-  # Create tarball for RPM sources
-  (cd target/rpm-build/SOURCES && tar -czf "$APP_NAME-${VERSION_NO_V}.tar.gz" "$APP_NAME-${VERSION_NO_V}")
-
-  # Create spec file
-  cat > target/rpm-build/SPECS/$APP_NAME.spec << EOF
-%global debug_package %{nil}
-%global _enable_debug_package 0
-%global __os_install_post /usr/lib/rpm/brp-compress %{nil}
-
-Name:           $APP_NAME
-Version:        ${VERSION_NO_V}
-Release:        1%{?dist}
-Summary:        CLI tool to switch between multiple Git accounts
-
-License:        MIT
-URL:            https://github.com/rein-hosz/GitSwitch
-Source0:        %{name}-%{version}.tar.gz
-
-Requires:       git
-Requires:       openssh
-
-%description
-git-switch allows users to manage and switch between multiple Git accounts.
-It handles SSH key management and Git configuration updates automatically.
-
-%prep
-%setup -q -n $APP_NAME-%{version}
-
-%install
-mkdir -p %{buildroot}/usr/bin
-mkdir -p %{buildroot}/usr/share/doc/%{name}
-cp -p usr/bin/$APP_NAME %{buildroot}/usr/bin/
-cp -pr usr/share/doc/$APP_NAME/* %{buildroot}/usr/share/doc/%{name}/ 2>/dev/null || :
-
-%files
-%attr(755, root, root) /usr/bin/$APP_NAME
-%doc /usr/share/doc/%{name}/*
-
-%changelog
-* $(date +"%a %b %d %Y") Ren Hoshizora <blackswordman@gmail.com> - ${VERSION_NO_V}-1
-- Initial RPM release
-EOF
-
-  # Build RPM
-  if command -v rpmbuild &> /dev/null; then
-    echo "Running rpmbuild..."
-    (cd target/rpm-build && rpmbuild --define "_topdir $(pwd)" --define "_build_id_links none" -ba SPECS/$APP_NAME.spec)
-
-    # Move RPM to target directory
-    mkdir -p target/rpm
-    find target/rpm-build/RPMS -name "*.rpm" -exec cp {} target/rpm/ \;
-
-    if [ -e "$(find target/rpm -name '*.rpm' 2>/dev/null)" ]; then
-      echo "RPM package created: $(find target/rpm -name '*.rpm')"
+  print_info "Checking for cargo-generate-rpm..."
+  if ! command -v cargo-generate-rpm &> /dev/null; then
+    print_warning "cargo-generate-rpm not found. Installing..."
+    cargo install cargo-generate-rpm
+    if ! command -v cargo-generate-rpm &> /dev/null; then
+      print_error "Failed to install cargo-generate-rpm. Please install it manually."
+      print_error "Skipping RPM build."
+      BUILD_RPM=0 # Skip RPM build if installation fails
     else
-      echo "❌ Failed to create RPM package"
+      print_success "cargo-generate-rpm installed successfully."
     fi
   else
-    echo "❌ rpmbuild not found. Please install rpm-build package."
-    echo "   On Debian/Ubuntu: sudo apt-get install rpm"
-    echo "   On Fedora/RHEL: sudo dnf install rpm-build"
+    print_success "cargo-generate-rpm found."
+  fi
+
+  if [ $BUILD_RPM -eq 1 ]; then # Check again in case it was disabled
+    print_info "Creating RPM package using cargo-generate-rpm..."
+    # Ensure Cargo.toml has necessary metadata for RPM generation
+    # Example: [package.metadata.rpm]
+    #          release = "1%{?dist}"
+    #          requires = ["git", "openssh"]
+    #          [package.metadata.rpm.changelog]
+    #          "* Mon Jan 01 2024 Your Name <your.email@example.com> - {version}-1" = ["Initial RPM release."]
+    # cargo-generate-rpm will use these, or defaults.
+
+    # The tool typically outputs to target/rpm/ directory by default.
+    # We might need to specify the output directory or move the file if needed.
+    if cargo generate-rpm; then
+      RPM_FILE=$(find target/rpm -name "${APP_NAME}-${VERSION_NO_V}*.rpm" -print -quit)
+      if [ -n "$RPM_FILE" ]; then
+        print_success "RPM package created: $RPM_FILE"
+      else
+        print_warning "Could not find the created .rpm file in target/rpm/ for version $VERSION_NO_V. Listing contents:"
+        ls -R target/rpm/
+      fi
+    else
+      print_error "cargo-generate-rpm failed!"
+    fi
   fi
 fi
 

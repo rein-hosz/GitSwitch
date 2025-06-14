@@ -48,6 +48,7 @@ jobs:
           sudo apt-get install -y build-essential pkg-config libssl-dev
 
       - name: Setup SSH agent
+        if: runner.os != '' # Always true, effectively runs on all OS
         shell: bash
         run: |
           eval "$(ssh-agent -s)"
@@ -59,7 +60,9 @@ jobs:
             echo "C:\\Program Files\\Git\\usr\\bin" >> $GITHUB_PATH
             echo "Git SSH tools path added to GITHUB_PATH for Windows"
           fi
-          ssh-add -l # Test command, should return 0 or 1 if agent is working
+          # Test command: succeed if agent is running (exit 0 or 1), fail on other errors (e.g., exit 2)
+          ssh-add -l || (exit_code=$?; if [ $exit_code -ne 1 ]; then exit $exit_code; fi)
+          echo "SSH Agent setup complete. Agent PID: $SSH_AGENT_PID, Auth Sock: $SSH_AUTH_SOCK"
 
       - name: Check formatting
         run: cargo fmt --all -- --check

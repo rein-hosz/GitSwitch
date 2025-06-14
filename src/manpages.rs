@@ -7,23 +7,26 @@ pub fn generate_man_page(cmd: &Command) -> Result<(), std::io::Error> {
     let man = Man::new(cmd.clone());
     let mut buffer: Vec<u8> = Vec::new();
     man.render(&mut buffer)?;
-    
+
     io::Write::write_all(&mut io::stdout(), &buffer)?;
     Ok(())
 }
 
 /// Generate man pages for all subcommands
-pub fn generate_all_man_pages(cmd: &Command, output_dir: Option<&str>) -> Result<(), std::io::Error> {
+pub fn generate_all_man_pages(
+    cmd: &Command,
+    output_dir: Option<&str>,
+) -> Result<(), std::io::Error> {
     let output_dir = output_dir.unwrap_or("man");
     std::fs::create_dir_all(output_dir)?;
-    
+
     // Generate main man page
     let main_man = Man::new(cmd.clone());
     let main_path = format!("{}/git-switch.1", output_dir);
     let mut main_file = std::fs::File::create(&main_path)?;
     main_man.render(&mut main_file)?;
     println!("Generated man page: {}", main_path);
-    
+
     // Generate subcommand man pages
     for subcommand in cmd.get_subcommands() {
         let sub_man = Man::new(subcommand.clone());
@@ -32,7 +35,7 @@ pub fn generate_all_man_pages(cmd: &Command, output_dir: Option<&str>) -> Result
         sub_man.render(&mut sub_file)?;
         println!("Generated man page: {}", sub_path);
     }
-    
+
     Ok(())
 }
 

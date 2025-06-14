@@ -1,26 +1,26 @@
-mod commands;
-mod config;
-mod error;
-mod ssh;
-mod git;
-mod utils;
-mod backup;
-mod validation;
-mod detection;
-mod templates;
 mod analytics;
+mod backup;
+mod commands;
+mod completions;
+mod config;
+mod detection;
+mod error;
+mod git;
+mod manpages;
 mod profiles;
 mod repository;
-mod completions;
-mod manpages;
+mod ssh;
+mod templates;
+mod utils;
+mod validation;
 
-use clap::{Parser, Subcommand, CommandFactory};
-use crate::error::Result;
 use crate::backup::ExportFormat;
-use std::path::PathBuf;
 use crate::error::GitSwitchError;
-use std::process::exit;
+use crate::error::Result;
+use clap::{CommandFactory, Parser, Subcommand};
 use colored::*;
+use std::path::PathBuf;
+use std::process::exit;
 
 /// Represents the command-line interface for git-switch.
 #[derive(Parser, Debug)]
@@ -331,32 +331,46 @@ fn main() {
 /// Helper function to contain the main CLI logic.
 fn run_cli() -> Result<(), anyhow::Error> {
     let cli = Cli::parse();
-    
+
     // Initialize logging
     if cli.verbose {
         tracing_subscriber::fmt::init();
     }
-    
+
     // Set color preference
     if cli.no_color {
         unsafe {
             std::env::set_var("NO_COLOR", "1");
         }
     }
-    
+
     // Perform startup validation
     if let Err(e) = validation::validate_startup() {
         tracing::warn!("Startup validation failed: {}", e);
     }
-    
+
     let mut config = config::load_config()?;
 
     match cli.command {
-        Commands::Add { name, username, email, ssh_key_path, interactive, provider } => {
+        Commands::Add {
+            name,
+            username,
+            email,
+            ssh_key_path,
+            interactive,
+            provider,
+        } => {
             if interactive {
                 commands::add_account_interactive(&mut config, &name)?;
             } else {
-                commands::add_account(&mut config, &name, &username, &email, ssh_key_path, provider)?;
+                commands::add_account(
+                    &mut config,
+                    &name,
+                    &username,
+                    &email,
+                    ssh_key_path,
+                    provider,
+                )?;
             }
         }
         Commands::List { detailed } => commands::list_accounts(&config, detailed)?,
@@ -393,7 +407,12 @@ fn run_cli() -> Result<(), anyhow::Error> {
             }
         },
         Commands::Profile(profile_opts) => match profile_opts.command {
-            ProfileCommands::Create { name, accounts, description, default } => {
+            ProfileCommands::Create {
+                name,
+                accounts,
+                description,
+                default,
+            } => {
                 let mut profile_manager = profiles::ProfileManager::new(config.clone())?;
                 profile_manager.create_profile(name, description, accounts, default)?;
             }
@@ -405,9 +424,21 @@ fn run_cli() -> Result<(), anyhow::Error> {
                 let mut profile_manager = profiles::ProfileManager::new(config)?;
                 profile_manager.switch_profile(&name, account)?;
             }
-            ProfileCommands::Update { name, description, add_accounts, remove_accounts, default } => {
+            ProfileCommands::Update {
+                name,
+                description,
+                add_accounts,
+                remove_accounts,
+                default,
+            } => {
                 let mut profile_manager = profiles::ProfileManager::new(config)?;
-                profile_manager.update_profile(&name, description, add_accounts, remove_accounts, default)?;
+                profile_manager.update_profile(
+                    &name,
+                    description,
+                    add_accounts,
+                    remove_accounts,
+                    default,
+                )?;
             }
             ProfileCommands::Remove { name } => {
                 let mut profile_manager = profiles::ProfileManager::new(config)?;
@@ -422,12 +453,23 @@ fn run_cli() -> Result<(), anyhow::Error> {
             TemplateCommands::List => {
                 templates::list_templates();
             }
-            TemplateCommands::Use { template, name, username, email } => {
+            TemplateCommands::Use {
+                template,
+                name,
+                username,
+                email,
+            } => {
                 let tmpl = templates::get_template(&template)?;
-                let account = templates::create_account_from_template(&name, &username, &email, &tmpl);
+                let account =
+                    templates::create_account_from_template(&name, &username, &email, &tmpl);
                 config.accounts.insert(name.clone(), account);
                 config::save_config(&config)?;
-                println!("{} Account '{}' created from {} template", "✓".green().bold(), name.cyan(), template.cyan());
+                println!(
+                    "{} Account '{}' created from {} template",
+                    "✓".green().bold(),
+                    name.cyan(),
+                    template.cyan()
+                );
             }
         },
         Commands::Analytics(analytics_opts) => match analytics_opts.command {
@@ -441,7 +483,7 @@ fn run_cli() -> Result<(), anyhow::Error> {
         Commands::Detect => {
             detection::suggest_account(&config)?;
             detection::check_account_mismatch(&config)?;
-        },
+        }
         Commands::Repo(repo_opts) => {
             let mut repo_manager = repository::RepoManager::new(config);
             match repo_opts.command {
@@ -461,7 +503,7 @@ fn run_cli() -> Result<(), anyhow::Error> {
                     repo_manager.interactive_configure()?;
                 }
             }
-        },
+        }
         Commands::Completions { shell } => {
             completions::generate_completions(shell, &mut Cli::command());
             completions::print_installation_instructions(shell);
@@ -479,7 +521,7 @@ fn run_cli() -> Result<(), anyhow::Error> {
                 }
             }
             manpages::print_man_installation_instructions();
-        },
+        }
     }
     Ok(())
 }

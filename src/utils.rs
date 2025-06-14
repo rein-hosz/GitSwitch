@@ -38,11 +38,7 @@ pub fn ensure_parent_dir_exists(path: &Path) -> Result<()> {
             fs::create_dir_all(parent_dir).map_err(|e| {
                 GitSwitchError::Io(io::Error::new(
                     e.kind(),
-                    format!(
-                        "Failed to create directory {}: {}",
-                        parent_dir.display(),
-                        e
-                    ),
+                    format!("Failed to create directory {}: {}", parent_dir.display(), e),
                 ))
             })?;
         }
@@ -79,11 +75,9 @@ pub fn run_command(command_str: &str, args: &[&str], current_dir: Option<&Path>)
         cmd.current_dir(dir);
     }
 
-    let status = cmd.status().map_err(|e| {
-        GitSwitchError::CommandExecution {
-            command: command_str.to_string(),
-            message: format!("Failed to spawn command: {}", e),
-        }
+    let status = cmd.status().map_err(|e| GitSwitchError::CommandExecution {
+        command: command_str.to_string(),
+        message: format!("Failed to spawn command: {}", e),
     })?;
 
     if !status.success() {
@@ -112,11 +106,9 @@ pub fn run_command_with_output(
         cmd.current_dir(dir);
     }
 
-    let output = cmd.output().map_err(|e| {
-        GitSwitchError::CommandExecution {
-            command: command_str.to_string(),
-            message: format!("Failed to spawn command for output: {}", e),
-        }
+    let output = cmd.output().map_err(|e| GitSwitchError::CommandExecution {
+        command: command_str.to_string(),
+        message: format!("Failed to spawn command for output: {}", e),
     })?;
 
     if !output.status.success() {
@@ -145,10 +137,8 @@ pub fn run_command_with_full_output(
         cmd.current_dir(dir);
     }
 
-    cmd.output().map_err(|e| {
-        GitSwitchError::CommandExecution {
-            command: command_str.to_string(),
-            message: format!("Failed to spawn command for full output: {}", e),
-        }
+    cmd.output().map_err(|e| GitSwitchError::CommandExecution {
+        command: command_str.to_string(),
+        message: format!("Failed to spawn command for full output: {}", e),
     })
 }

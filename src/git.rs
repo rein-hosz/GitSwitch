@@ -2,7 +2,8 @@ use crate::error::{GitSwitchError, Result};
 use crate::utils::run_command_with_full_output;
 
 pub fn update_git_remote(remote_name: &str, remote_url: &str) -> Result<()> {
-    let output = run_command_with_full_output("git", &["remote", "set-url", remote_name, remote_url], None)?;
+    let output =
+        run_command_with_full_output("git", &["remote", "set-url", remote_name, remote_url], None)?;
     if !output.status.success() {
         return Err(GitSwitchError::GitCommandFailed {
             command: format!("git remote set-url {} {}", remote_name, remote_url),
@@ -33,13 +34,16 @@ pub fn get_git_remote_url(remote_name: &str) -> Result<String> {
             }
         }
     }
-    Err(GitSwitchError::GitRemoteUrlNotFound { remote_name: remote_name.to_string() })
+    Err(GitSwitchError::GitRemoteUrlNotFound {
+        remote_name: remote_name.to_string(),
+    })
 }
 
 pub fn is_git_repository() -> Result<bool> {
     // The `?` operator will propagate errors from run_command_with_full_output,
     // such as GitSwitchError::CommandExecution if 'git' command is not found.
-    let output = run_command_with_full_output("git", &["rev-parse", "--is-inside-work-tree"], None)?;
+    let output =
+        run_command_with_full_output("git", &["rev-parse", "--is-inside-work-tree"], None)?;
 
     if output.status.success() {
         // Command succeeded, stdout should be "true"
@@ -48,7 +52,8 @@ pub fn is_git_repository() -> Result<bool> {
         // Command executed but failed. Check if it's because it's not a git repository.
         let stderr = String::from_utf8_lossy(&output.stderr).to_lowercase();
         // Typical message for not a git repository: "fatal: not a git repository..."
-        if stderr.contains("not a git repository") || stderr.contains("fatal: not a git repository") {
+        if stderr.contains("not a git repository") || stderr.contains("fatal: not a git repository")
+        {
             Ok(false) // It's confirmed not a git repository by the command's error output.
         } else {
             // Another type of failure from "git rev-parse --is-inside-work-tree".
@@ -83,31 +88,47 @@ pub fn set_local_config(username: &str, email: &str) -> Result<()> {
 
 /// Get global Git configuration
 pub fn get_global_config() -> Result<(String, String)> {
-    let name_output = run_command_with_full_output("git", &["config", "--global", "user.name"], None)?;
-    let email_output = run_command_with_full_output("git", &["config", "--global", "user.email"], None)?;
-    
+    let name_output =
+        run_command_with_full_output("git", &["config", "--global", "user.name"], None)?;
+    let email_output =
+        run_command_with_full_output("git", &["config", "--global", "user.email"], None)?;
+
     if !name_output.status.success() || !email_output.status.success() {
-        return Err(GitSwitchError::Other("Failed to get global Git config".to_string()));
+        return Err(GitSwitchError::Other(
+            "Failed to get global Git config".to_string(),
+        ));
     }
-    
-    let name = String::from_utf8_lossy(&name_output.stdout).trim().to_string();
-    let email = String::from_utf8_lossy(&email_output.stdout).trim().to_string();
-    
+
+    let name = String::from_utf8_lossy(&name_output.stdout)
+        .trim()
+        .to_string();
+    let email = String::from_utf8_lossy(&email_output.stdout)
+        .trim()
+        .to_string();
+
     Ok((name, email))
 }
 
 /// Get local Git configuration for current repository
 pub fn get_local_config() -> Result<(String, String)> {
-    let name_output = run_command_with_full_output("git", &["config", "--local", "user.name"], None)?;
-    let email_output = run_command_with_full_output("git", &["config", "--local", "user.email"], None)?;
-    
+    let name_output =
+        run_command_with_full_output("git", &["config", "--local", "user.name"], None)?;
+    let email_output =
+        run_command_with_full_output("git", &["config", "--local", "user.email"], None)?;
+
     if !name_output.status.success() || !email_output.status.success() {
-        return Err(GitSwitchError::Other("Failed to get local Git config".to_string()));
+        return Err(GitSwitchError::Other(
+            "Failed to get local Git config".to_string(),
+        ));
     }
-    
-    let name = String::from_utf8_lossy(&name_output.stdout).trim().to_string();
-    let email = String::from_utf8_lossy(&email_output.stdout).trim().to_string();
-    
+
+    let name = String::from_utf8_lossy(&name_output.stdout)
+        .trim()
+        .to_string();
+    let email = String::from_utf8_lossy(&email_output.stdout)
+        .trim()
+        .to_string();
+
     Ok((name, email))
 }
 
@@ -199,4 +220,3 @@ pub fn get_global_config_key(key: &str) -> Result<String> {
     }
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
-

@@ -1,10 +1,10 @@
-use crate::config::{Config, Account};
+use crate::config::{Account, Config};
 use crate::error::{GitSwitchError, Result};
 use crate::git;
-use std::path::{Path, PathBuf};
 use colored::*;
 use indicatif::{ProgressBar, ProgressStyle};
 use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
 
 /// Represents a discovered Git repository
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,20 +34,33 @@ impl RepoManager {
     }
 
     /// Discover Git repositories recursively from a given path
-    pub fn discover_repositories(&mut self, search_path: &Path, max_depth: Option<usize>) -> Result<()> {
-        println!("{} Discovering Git repositories in {}...", 
-                "🔍".cyan(), search_path.display());
+    pub fn discover_repositories(
+        &mut self,
+        search_path: &Path,
+        max_depth: Option<usize>,
+    ) -> Result<()> {
+        println!(
+            "{} Discovering Git repositories in {}...",
+            "🔍".cyan(),
+            search_path.display()
+        );
 
         let repos = self.find_git_repositories(search_path, max_depth.unwrap_or(5))?;
-        
+
         if repos.is_empty() {
-            println!("{} No Git repositories found in {}", 
-                    "ℹ".blue(), search_path.display());
+            println!(
+                "{} No Git repositories found in {}",
+                "ℹ".blue(),
+                search_path.display()
+            );
             return Ok(());
         }
 
-        println!("{} Found {} repositories. Analyzing...", 
-                "✓".green(), repos.len());
+        println!(
+            "{} Found {} repositories. Analyzing...",
+            "✓".green(),
+            repos.len()
+        );
 
         // Create progress bar
         let pb = ProgressBar::new(repos.len() as u64);
@@ -59,7 +72,7 @@ impl RepoManager {
         );
 
         self.discovered_repos.clear();
-        
+
         for repo_path in repos {
             let discovered = self.analyze_repository(&repo_path)?;
             self.discovered_repos.push(discovered);
@@ -67,8 +80,12 @@ impl RepoManager {
         }
 
         pb.finish_with_message("Analysis complete!");
-        
-        println!("{} Analyzed {} repositories", "✓".green(), self.discovered_repos.len());
+
+        println!(
+            "{} Analyzed {} repositories",
+            "✓".green(),
+            self.discovered_repos.len()
+        );
         self.print_discovery_summary()?;
 
         Ok(())
@@ -102,7 +119,14 @@ impl RepoManager {
         if let Ok(entries) = std::fs::read_dir(path) {
             for entry in entries.flatten() {
                 let entry_path = entry.path();
-                if entry_path.is_dir() && !entry_path.file_name().unwrap().to_str().unwrap().starts_with('.') {
+                if entry_path.is_dir()
+                    && !entry_path
+                        .file_name()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .starts_with('.')
+                {
                     self.find_git_repositories_recursive(
                         &entry_path,
                         max_depth,
@@ -117,18 +141,15 @@ impl RepoManager {
     }
 
     fn analyze_repository(&self, repo_path: &Path) -> Result<DiscoveredRepo> {
-        let original_dir = std::env::current_dir()
-            .map_err(|e| GitSwitchError::Io(e))?;
+        let original_dir = std::env::current_dir().map_err(|e| GitSwitchError::Io(e))?;
 
         // Change to repository directory
-        std::env::set_current_dir(repo_path)
-            .map_err(|e| GitSwitchError::Io(e))?;
+        std::env::set_current_dir(repo_path).map_err(|e| GitSwitchError::Io(e))?;
 
         let result = self.analyze_current_repository(repo_path);
 
         // Restore original directory
-        std::env::set_current_dir(original_dir)
-            .map_err(|e| GitSwitchError::Io(e))?;
+        std::env::set_current_dir(original_dir).map_err(|e| GitSwitchError::Io(e))?;
 
         result
     }
@@ -138,7 +159,7 @@ impl RepoManager {
         let current_user_name = git::get_local_config_key("user.name").ok();
         let current_user_email = git::get_local_config_key("user.email").ok();
         let branch = git::get_current_branch().ok();
-        
+
         // Get last commit author
         let last_commit_author = std::process::Command::new("git")
             .args(&["log", "-1", "--pretty=format:%an <%ae>"])
@@ -210,7 +231,7 @@ impl RepoManager {
 
             if total_checks > 0 {
                 confidence = confidence * (matches as f32 / total_checks as f32);
-                
+
                 if confidence > best_confidence {
                     best_confidence = confidence;
                     best_match = Some(account_name.clone());
@@ -233,10 +254,11 @@ impl RepoManager {
                     high_confidence += 1;
                 }
             }
-            
+
             // Check for potential mismatches
-            if let (Some(suggested), Some(current_email)) = 
-                (&repo.suggested_account, &repo.current_user_email) {
+            if let (Some(suggested), Some(current_email)) =
+                (&repo.suggested_account, &repo.current_user_email)
+            {
                 if let Some(account) = self.config.accounts.get(suggested) {
                     if current_email != &account.email {
                         mismatched += 1;
@@ -247,9 +269,18 @@ impl RepoManager {
 
         println!();
         println!("{}", "Discovery Summary:".bold().underline());
-        println!("  Total repositories: {}", self.discovered_repos.len().to_string().cyan());
-        println!("  With account suggestions: {}", with_suggestions.to_string().green());
-        println!("  High confidence matches: {}", high_confidence.to_string().yellow());
+        println!(
+            "  Total repositories: {}",
+            self.discovered_repos.len().to_string().cyan()
+        );
+        println!(
+            "  With account suggestions: {}",
+            with_suggestions.to_string().green()
+        );
+        println!(
+            "  High confidence matches: {}",
+            high_confidence.to_string().yellow()
+        );
         if mismatched > 0 {
             println!("  Potential mismatches: {}", mismatched.to_string().red());
         }
@@ -261,8 +292,10 @@ impl RepoManager {
     /// List discovered repositories with details
     pub fn list_discovered(&self) -> Result<()> {
         if self.discovered_repos.is_empty() {
-            println!("{} No repositories discovered yet. Run discovery first.", 
-                    "ℹ".blue());
+            println!(
+                "{} No repositories discovered yet. Run discovery first.",
+                "ℹ".blue()
+            );
             return Ok(());
         }
 
@@ -270,9 +303,11 @@ impl RepoManager {
         println!();
 
         for (i, repo) in self.discovered_repos.iter().enumerate() {
-            println!("{} {}", 
-                    format!("{}.", i + 1).cyan(),
-                    repo.path.display().to_string().bold());
+            println!(
+                "{} {}",
+                format!("{}.", i + 1).cyan(),
+                repo.path.display().to_string().bold()
+            );
 
             if let Some(url) = &repo.remote_url {
                 println!("   Remote: {}", url.dimmed());
@@ -307,10 +342,12 @@ impl RepoManager {
                 } else {
                     suggested.normal()
                 };
-                
-                println!("   Suggested: {} ({}% confidence)", 
-                        confidence_color,
-                        (repo.account_confidence * 100.0) as u8);
+
+                println!(
+                    "   Suggested: {} ({}% confidence)",
+                    confidence_color,
+                    (repo.account_confidence * 100.0) as u8
+                );
             } else {
                 println!("   Suggested: {}", "None".dimmed());
             }
@@ -327,22 +364,26 @@ impl RepoManager {
             return Err(GitSwitchError::NoRepositoriesDiscovered);
         }
 
-        let applicable_repos: Vec<_> = self.discovered_repos
+        let applicable_repos: Vec<_> = self
+            .discovered_repos
             .iter()
             .filter(|repo| repo.suggested_account.is_some())
             .collect();
 
         if applicable_repos.is_empty() {
-            println!("{} No repositories with account suggestions found", "ℹ".blue());
+            println!(
+                "{} No repositories with account suggestions found",
+                "ℹ".blue()
+            );
             return Ok(());
         }
 
         println!("{} repositories with suggestions:", applicable_repos.len());
-        
+
         if dry_run {
             println!("{}", "DRY RUN - No changes will be made".yellow().bold());
         }
-        
+
         println!();
 
         for repo in &applicable_repos {
@@ -351,14 +392,16 @@ impl RepoManager {
 
             println!("{} {}", "▶".green(), repo.path.display());
             println!("  Account: {}", suggested_account.cyan());
-            
+
             println!("  Name: {}", account.name);
             println!("  Email: {}", account.email);
 
             if !dry_run {
                 if !force && repo.account_confidence < 0.5 {
-                    println!("  {}: Low confidence, skipping (use --force to apply)", 
-                            "⚠".yellow());
+                    println!(
+                        "  {}: Low confidence, skipping (use --force to apply)",
+                        "⚠".yellow()
+                    );
                     continue;
                 }
 
@@ -368,7 +411,7 @@ impl RepoManager {
                     Err(e) => println!("  {}: Failed - {}", "✗".red(), e),
                 }
             }
-            
+
             println!();
         }
 
@@ -382,23 +425,21 @@ impl RepoManager {
     }
 
     fn apply_account_to_repo(&self, repo_path: &Path, account_name: &str) -> Result<()> {
-        let account = self.config.accounts.get(account_name)
-            .ok_or_else(|| GitSwitchError::AccountNotFound { 
-                name: account_name.to_string() 
-            })?;
+        let account = self.config.accounts.get(account_name).ok_or_else(|| {
+            GitSwitchError::AccountNotFound {
+                name: account_name.to_string(),
+            }
+        })?;
 
-        let original_dir = std::env::current_dir()
-            .map_err(|e| GitSwitchError::Io(e))?;
+        let original_dir = std::env::current_dir().map_err(|e| GitSwitchError::Io(e))?;
 
         // Change to repository directory
-        std::env::set_current_dir(repo_path)
-            .map_err(|e| GitSwitchError::Io(e))?;
+        std::env::set_current_dir(repo_path).map_err(|e| GitSwitchError::Io(e))?;
 
         let result = self.apply_account_config(account);
 
         // Restore original directory
-        std::env::set_current_dir(original_dir)
-            .map_err(|e| GitSwitchError::Io(e))?;
+        std::env::set_current_dir(original_dir).map_err(|e| GitSwitchError::Io(e))?;
 
         result
     }
@@ -412,7 +453,10 @@ impl RepoManager {
 
         // Set SSH key if available
         if !account.ssh_key_path.is_empty() {
-            git::set_local_config_key("core.sshCommand", &format!("ssh -i {}", account.ssh_key_path))?;
+            git::set_local_config_key(
+                "core.sshCommand",
+                &format!("ssh -i {}", account.ssh_key_path),
+            )?;
         }
 
         Ok(())
@@ -421,11 +465,10 @@ impl RepoManager {
     /// Generate a report of repository analysis
     pub fn generate_report(&self, output_path: Option<&Path>) -> Result<()> {
         let report = self.create_report()?;
-        
+
         match output_path {
             Some(path) => {
-                std::fs::write(path, &report)
-                    .map_err(|e| GitSwitchError::Io(e))?;
+                std::fs::write(path, &report).map_err(|e| GitSwitchError::Io(e))?;
                 println!("{} Report saved to {}", "✓".green(), path.display());
             }
             None => {
@@ -438,36 +481,46 @@ impl RepoManager {
 
     fn create_report(&self) -> Result<String> {
         let mut report = String::new();
-        
+
         report.push_str(&format!("# Git Repository Analysis Report\n"));
-        report.push_str(&format!("Generated: {}\n\n", chrono::Utc::now().format("%Y-%m-%d %H:%M UTC")));
-        
+        report.push_str(&format!(
+            "Generated: {}\n\n",
+            chrono::Utc::now().format("%Y-%m-%d %H:%M UTC")
+        ));
+
         report.push_str(&format!("## Summary\n"));
-        report.push_str(&format!("- Total repositories: {}\n", self.discovered_repos.len()));
-        
-        let with_suggestions = self.discovered_repos.iter()
+        report.push_str(&format!(
+            "- Total repositories: {}\n",
+            self.discovered_repos.len()
+        ));
+
+        let with_suggestions = self
+            .discovered_repos
+            .iter()
             .filter(|r| r.suggested_account.is_some())
             .count();
         report.push_str(&format!("- With suggestions: {}\n", with_suggestions));
-        
-        let high_confidence = self.discovered_repos.iter()
+
+        let high_confidence = self
+            .discovered_repos
+            .iter()
             .filter(|r| r.account_confidence > 0.7)
             .count();
         report.push_str(&format!("- High confidence: {}\n\n", high_confidence));
-        
+
         report.push_str("## Repository Details\n\n");
-        
+
         for (i, repo) in self.discovered_repos.iter().enumerate() {
             report.push_str(&format!("### {}. {}\n", i + 1, repo.path.display()));
-            
+
             if let Some(url) = &repo.remote_url {
                 report.push_str(&format!("- **Remote**: {}\n", url));
             }
-            
+
             if let Some(branch) = &repo.branch {
                 report.push_str(&format!("- **Branch**: {}\n", branch));
             }
-            
+
             match (&repo.current_user_name, &repo.current_user_email) {
                 (Some(name), Some(email)) => {
                     report.push_str(&format!("- **Current Config**: {} <{}>\n", name, email));
@@ -482,43 +535,52 @@ impl RepoManager {
                     report.push_str("- **Current Config**: Not configured\n");
                 }
             }
-            
+
             if let Some(suggested) = &repo.suggested_account {
-                report.push_str(&format!("- **Suggested Account**: {} ({}% confidence)\n", 
-                                       suggested, (repo.account_confidence * 100.0) as u8));
+                report.push_str(&format!(
+                    "- **Suggested Account**: {} ({}% confidence)\n",
+                    suggested,
+                    (repo.account_confidence * 100.0) as u8
+                ));
             }
-            
+
             report.push_str("\n");
         }
-        
+
         Ok(report)
     }
 
     /// Interactive repository selection and configuration
     pub fn interactive_configure(&mut self) -> Result<()> {
-        use dialoguer::{MultiSelect, Confirm};
+        use dialoguer::{Confirm, MultiSelect};
 
         if self.discovered_repos.is_empty() {
             return Err(GitSwitchError::NoRepositoriesDiscovered);
         }
 
-        let repos_with_suggestions: Vec<_> = self.discovered_repos
+        let repos_with_suggestions: Vec<_> = self
+            .discovered_repos
             .iter()
             .enumerate()
             .filter(|(_, repo)| repo.suggested_account.is_some())
             .collect();
 
         if repos_with_suggestions.is_empty() {
-            println!("{} No repositories with account suggestions found", "ℹ".blue());
+            println!(
+                "{} No repositories with account suggestions found",
+                "ℹ".blue()
+            );
             return Ok(());
         }
 
         let items: Vec<String> = repos_with_suggestions
             .iter()
             .map(|(_, repo)| {
-                format!("{} -> {}", 
-                       repo.path.display(),
-                       repo.suggested_account.as_ref().unwrap())
+                format!(
+                    "{} -> {}",
+                    repo.path.display(),
+                    repo.suggested_account.as_ref().unwrap()
+                )
             })
             .collect();
 
@@ -535,9 +597,11 @@ impl RepoManager {
         println!("\nYou selected {} repositories:", selections.len());
         for &idx in &selections {
             let (_, repo) = repos_with_suggestions[idx];
-            println!("  {} -> {}", 
-                    repo.path.display(),
-                    repo.suggested_account.as_ref().unwrap());
+            println!(
+                "  {} -> {}",
+                repo.path.display(),
+                repo.suggested_account.as_ref().unwrap()
+            );
         }
 
         let confirm = Confirm::new()
@@ -553,17 +617,21 @@ impl RepoManager {
         for &idx in &selections {
             let (_, repo) = repos_with_suggestions[idx];
             let account_name = repo.suggested_account.as_ref().unwrap();
-            
+
             match self.apply_account_to_repo(&repo.path, account_name) {
-                Ok(_) => println!("{} {} -> {}", 
-                                "✓".green(), 
-                                repo.path.display(), 
-                                account_name),
-                Err(e) => println!("{} {} -> {} ({})", 
-                                 "✗".red(), 
-                                 repo.path.display(), 
-                                 account_name, 
-                                 e),
+                Ok(_) => println!(
+                    "{} {} -> {}",
+                    "✓".green(),
+                    repo.path.display(),
+                    account_name
+                ),
+                Err(e) => println!(
+                    "{} {} -> {} ({})",
+                    "✗".red(),
+                    repo.path.display(),
+                    account_name,
+                    e
+                ),
             }
         }
 

@@ -1,8 +1,8 @@
 use crate::config::Config;
 use crate::error::{GitSwitchError, Result};
+use colored::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use colored::*;
 
 /// Represents a profile containing multiple accounts for different contexts
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,9 +33,8 @@ impl ProfileManager {
             return Ok(HashMap::new());
         }
 
-        let content = std::fs::read_to_string(&profiles_path)
-            .map_err(|e| GitSwitchError::Io(e))?;
-        
+        let content = std::fs::read_to_string(&profiles_path).map_err(|e| GitSwitchError::Io(e))?;
+
         let profiles: HashMap<String, Profile> = toml::from_str(&content)
             .map_err(|e| GitSwitchError::SerializationError(e.to_string()))?;
 
@@ -44,18 +43,16 @@ impl ProfileManager {
 
     fn save_profiles(&self) -> Result<()> {
         let profiles_path = self.config.get_profiles_path();
-        
+
         // Create parent directory if it doesn't exist
         if let Some(parent) = profiles_path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| GitSwitchError::Io(e))?;
+            std::fs::create_dir_all(parent).map_err(|e| GitSwitchError::Io(e))?;
         }
 
         let content = toml::to_string_pretty(&self.profiles)
             .map_err(|e| GitSwitchError::SerializationError(e.to_string()))?;
-        
-        std::fs::write(&profiles_path, content)
-            .map_err(|e| GitSwitchError::Io(e))?;
+
+        std::fs::write(&profiles_path, content).map_err(|e| GitSwitchError::Io(e))?;
 
         Ok(())
     }
@@ -75,8 +72,8 @@ impl ProfileManager {
         // Validate that all accounts exist
         for account_name in &accounts {
             if !self.config.accounts.contains_key(account_name) {
-                return Err(GitSwitchError::AccountNotFound { 
-                    name: account_name.clone() 
+                return Err(GitSwitchError::AccountNotFound {
+                    name: account_name.clone(),
                 });
             }
         }
@@ -110,8 +107,8 @@ impl ProfileManager {
     /// Delete a profile
     pub fn delete_profile(&mut self, name: &str) -> Result<()> {
         if !self.profiles.contains_key(name) {
-            return Err(GitSwitchError::ProfileNotFound { 
-                name: name.to_string() 
+            return Err(GitSwitchError::ProfileNotFound {
+                name: name.to_string(),
             });
         }
 
@@ -126,8 +123,10 @@ impl ProfileManager {
     pub fn list_profiles(&self) -> Result<()> {
         if self.profiles.is_empty() {
             println!("{} No profiles found", "ℹ".blue());
-            println!("Create a profile with: {}", 
-                    "git-switch profile create <name> --accounts <account1,account2>".cyan());
+            println!(
+                "Create a profile with: {}",
+                "git-switch profile create <name> --accounts <account1,account2>".cyan()
+            );
             return Ok(());
         }
 
@@ -136,26 +135,33 @@ impl ProfileManager {
 
         for (name, profile) in &self.profiles {
             println!("{} {}", "▶".green(), name.bold());
-            
+
             if let Some(ref description) = profile.description {
                 println!("  Description: {}", description.italic());
             }
-            
-            println!("  Accounts: {}", 
-                    profile.accounts.join(", ").cyan());
-            
+
+            println!("  Accounts: {}", profile.accounts.join(", ").cyan());
+
             if let Some(ref default) = profile.default_account {
                 println!("  Default: {}", default.yellow());
             }
-            
-            println!("  Created: {}", 
-                    profile.created_at.format("%Y-%m-%d %H:%M UTC").to_string().dimmed());
-            
+
+            println!(
+                "  Created: {}",
+                profile
+                    .created_at
+                    .format("%Y-%m-%d %H:%M UTC")
+                    .to_string()
+                    .dimmed()
+            );
+
             if let Some(last_used) = profile.last_used {
-                println!("  Last used: {}", 
-                        last_used.format("%Y-%m-%d %H:%M UTC").to_string().dimmed());
+                println!(
+                    "  Last used: {}",
+                    last_used.format("%Y-%m-%d %H:%M UTC").to_string().dimmed()
+                );
             }
-            
+
             println!();
         }
 
@@ -166,11 +172,13 @@ impl ProfileManager {
     pub fn switch_profile(&mut self, name: &str, account_override: Option<String>) -> Result<()> {
         // Determine which account to use
         let account_name = if let Some(override_account) = account_override {
-            let profile = self.profiles.get(name)
-                .ok_or_else(|| GitSwitchError::ProfileNotFound { 
-                    name: name.to_string() 
-                })?;
-                
+            let profile =
+                self.profiles
+                    .get(name)
+                    .ok_or_else(|| GitSwitchError::ProfileNotFound {
+                        name: name.to_string(),
+                    })?;
+
             if !profile.accounts.contains(&override_account) {
                 return Err(GitSwitchError::AccountNotInProfile {
                     profile: name.to_string(),
@@ -179,11 +187,13 @@ impl ProfileManager {
             }
             override_account
         } else {
-            let profile = self.profiles.get(name)
-                .ok_or_else(|| GitSwitchError::ProfileNotFound { 
-                    name: name.to_string() 
-                })?;
-                
+            let profile =
+                self.profiles
+                    .get(name)
+                    .ok_or_else(|| GitSwitchError::ProfileNotFound {
+                        name: name.to_string(),
+                    })?;
+
             if let Some(ref default) = profile.default_account {
                 default.clone()
             } else {
@@ -201,8 +211,12 @@ impl ProfileManager {
         // Switch to the selected account
         crate::commands::handle_account_subcommand(&self.config, &account_name)?;
 
-        println!("{} Switched to profile '{}' using account '{}'", 
-                "✓".green(), name, account_name);
+        println!(
+            "{} Switched to profile '{}' using account '{}'",
+            "✓".green(),
+            name,
+            account_name
+        );
 
         Ok(())
     }
@@ -210,13 +224,18 @@ impl ProfileManager {
     fn prompt_account_selection_by_name(&self, profile_name: &str) -> Result<()> {
         use dialoguer::Select;
 
-        let profile = self.profiles.get(profile_name)
-            .ok_or_else(|| GitSwitchError::ProfileNotFound { 
-                name: profile_name.to_string() 
-            })?;
+        let profile =
+            self.profiles
+                .get(profile_name)
+                .ok_or_else(|| GitSwitchError::ProfileNotFound {
+                    name: profile_name.to_string(),
+                })?;
 
-        println!("Profile '{}' has no default account. Please select one:", profile.name);
-        
+        println!(
+            "Profile '{}' has no default account. Please select one:",
+            profile.name
+        );
+
         let selection = Select::new()
             .with_prompt("Select account")
             .items(&profile.accounts)
@@ -238,10 +257,12 @@ impl ProfileManager {
         remove_accounts: Vec<String>,
         default_account: Option<String>,
     ) -> Result<()> {
-        let profile = self.profiles.get_mut(name)
-            .ok_or_else(|| GitSwitchError::ProfileNotFound { 
-                name: name.to_string() 
-            })?;
+        let profile =
+            self.profiles
+                .get_mut(name)
+                .ok_or_else(|| GitSwitchError::ProfileNotFound {
+                    name: name.to_string(),
+                })?;
 
         // Update description if provided
         if let Some(desc) = description {
@@ -296,30 +317,36 @@ impl ProfileManager {
 
         let mut profiles: Vec<_> = self.profiles.values().collect();
         profiles.sort_by(|a, b| {
-            b.last_used.unwrap_or(chrono::DateTime::from_timestamp(0, 0).unwrap())
-                .cmp(&a.last_used.unwrap_or(chrono::DateTime::from_timestamp(0, 0).unwrap()))
+            b.last_used
+                .unwrap_or(chrono::DateTime::from_timestamp(0, 0).unwrap())
+                .cmp(
+                    &a.last_used
+                        .unwrap_or(chrono::DateTime::from_timestamp(0, 0).unwrap()),
+                )
         });
 
         for profile in profiles {
-            println!("{} {} ({})", 
-                    "▶".green(), 
-                    profile.name.bold(),
-                    format!("{} accounts", profile.accounts.len()).dimmed());
-            
+            println!(
+                "{} {} ({})",
+                "▶".green(),
+                profile.name.bold(),
+                format!("{} accounts", profile.accounts.len()).dimmed()
+            );
+
             if let Some(last_used) = profile.last_used {
                 let days_ago = (chrono::Utc::now() - last_used).num_days();
-                println!("  Last used: {} ({} days ago)", 
-                        last_used.format("%Y-%m-%d").to_string().cyan(),
-                        days_ago);
+                println!(
+                    "  Last used: {} ({} days ago)",
+                    last_used.format("%Y-%m-%d").to_string().cyan(),
+                    days_ago
+                );
             } else {
                 println!("  Last used: {}", "Never".dimmed());
             }
-            
+
             println!();
         }
 
         Ok(())
     }
 }
-
-

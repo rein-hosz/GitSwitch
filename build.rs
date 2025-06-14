@@ -11,7 +11,10 @@ fn main() {
         env::var("CARGO_PKG_VERSION").expect("CARGO_PKG_VERSION not set in build script");
 
     let mut git_details_str = "".to_string();
-    match Command::new("git").args(["describe", "--tags", "--dirty", "--always"]).output() {
+    match Command::new("git")
+        .args(["describe", "--tags", "--dirty", "--always"])
+        .output()
+    {
         Ok(output) if output.status.success() => {
             let details = String::from_utf8(output.stdout)
                 .unwrap_or_default()

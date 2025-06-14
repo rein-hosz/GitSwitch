@@ -1,5 +1,5 @@
 use clap::Command;
-use clap_complete::{generate, Shell};
+use clap_complete::{Shell, generate};
 use std::io;
 
 /// Generate shell completion scripts
@@ -14,7 +14,9 @@ pub fn print_installation_instructions(shell: Shell) {
             println!("# To install bash completions, add the following to your ~/.bashrc:");
             println!("# source <(git-switch completions bash)");
             println!("# Or save to a file and source it:");
-            println!("# git-switch completions bash > ~/.local/share/bash-completion/completions/git-switch");
+            println!(
+                "# git-switch completions bash > ~/.local/share/bash-completion/completions/git-switch"
+            );
         }
         Shell::Zsh => {
             println!("# To install zsh completions, add the following to your ~/.zshrc:");
@@ -22,7 +24,9 @@ pub fn print_installation_instructions(shell: Shell) {
             println!("# compinit");
             println!("# source <(git-switch completions zsh)");
             println!("# Or save to a file in your fpath:");
-            println!("# git-switch completions zsh > ~/.local/share/zsh/site-functions/_git-switch");
+            println!(
+                "# git-switch completions zsh > ~/.local/share/zsh/site-functions/_git-switch"
+            );
         }
         Shell::Fish => {
             println!("# To install fish completions:");

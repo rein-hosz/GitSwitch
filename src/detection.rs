@@ -37,10 +37,15 @@ fn url_matches_provider(url: &str, provider: &str) -> bool {
 /// Suggest account based on current repository
 pub fn suggest_account(config: &Config) -> Result<()> {
     if let Some(account_name) = detect_account_from_remote(config)? {
-        println!("{} Detected account '{}' for this repository", 
-            "💡".to_string(), account_name.cyan());
-        println!("Use {} to apply this account", 
-            format!("git-switch account {}", account_name).cyan());
+        println!(
+            "{} Detected account '{}' for this repository",
+            "💡".to_string(),
+            account_name.cyan()
+        );
+        println!(
+            "Use {} to apply this account",
+            format!("git-switch account {}", account_name).cyan()
+        );
     } else {
         println!("{} No account detected for this repository", "ℹ".blue());
         if !config.accounts.is_empty() {
@@ -58,9 +63,11 @@ pub fn check_account_mismatch(config: &Config) -> Result<()> {
     }
 
     let suggested = detect_account_from_remote(config)?;
-    
+
     if let Ok((_, local_email)) = git::get_local_config() {
-        let current_account = config.accounts.values()
+        let current_account = config
+            .accounts
+            .values()
             .find(|acc| acc.email == local_email)
             .map(|acc| acc.name.clone());
 
@@ -69,8 +76,10 @@ pub fn check_account_mismatch(config: &Config) -> Result<()> {
                 println!("{} Account mismatch detected!", "⚠".yellow().bold());
                 println!("  Current: {}", current_name.red());
                 println!("  Suggested: {}", suggested_name.green());
-                println!("  Use {} to switch", 
-                    format!("git-switch account {}", suggested_name).cyan());
+                println!(
+                    "  Use {} to switch",
+                    format!("git-switch account {}", suggested_name).cyan()
+                );
             }
         }
     }
@@ -84,7 +93,7 @@ pub fn check_account_mismatch(config: &Config) -> Result<()> {
 pub fn detect_account_for_remote_url(config: &Config, remote_url: &str) -> Result<Option<String>> {
     // Parse the remote URL to extract the provider and repository info
     let remote_url = remote_url.to_lowercase();
-    
+
     // GitHub patterns
     if remote_url.contains("github.com") {
         for (account_name, account) in &config.accounts {
@@ -101,7 +110,7 @@ pub fn detect_account_for_remote_url(config: &Config, remote_url: &str) -> Resul
             }
         }
     }
-    
+
     // GitLab patterns
     if remote_url.contains("gitlab.com") {
         for (account_name, account) in &config.accounts {
@@ -117,7 +126,7 @@ pub fn detect_account_for_remote_url(config: &Config, remote_url: &str) -> Resul
             }
         }
     }
-    
+
     // Bitbucket patterns
     if remote_url.contains("bitbucket.org") {
         for (account_name, account) in &config.accounts {
@@ -133,7 +142,7 @@ pub fn detect_account_for_remote_url(config: &Config, remote_url: &str) -> Resul
             }
         }
     }
-    
+
     Ok(None)
 }
 

@@ -48,7 +48,8 @@
     </DirectoryRef>
 
     <Component Id="UpdatePath" Directory="INSTALLFOLDER" Guid="D9E8F7C6-B5A4-498D-8A7F-6E5D4C3B2A10">
-      <!-- Add INSTALLFOLDER to the system PATH -->
+      <!-- Add a registry value to serve as KeyPath for this component -->
+      <RegistryValue Root="HKLM" Key="Software\$(var.Manufacturer)\$(var.ProductName)" Name="PathConfigured" Type="integer" Value="1" KeyPath="yes" />
       <Environment Id="PATH" Name="PATH" Value="[INSTALLFOLDER]" Permanent="no" Part="last" Action="set" System="yes" />
     </Component>
 

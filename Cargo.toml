@@ -79,20 +79,17 @@ requires = ["git", "openssh"]
 "README.md" = { path = "/usr/share/doc/git-switch/README.md", mode = "644" }
 "LICENSE" = { path = "/usr/share/doc/git-switch/LICENSE", mode = "644" }
 
-# Add this section for cargo-generate-rpm
 [package.metadata.generate-rpm]
-# assets field is typically used by cargo-deb, cargo-generate-rpm uses [package.metadata.rpm.files]
-# but we can specify other things here if needed, like release or changelog.
-# For now, we'll rely on the existing [package.metadata.rpm.files] for assets.
-# If cargo-generate-rpm needs specific fields here, they can be added.
-# Example: 
-# release = "1%{?dist}" 
+# Attempt to satisfy "Missing field: package.assets" error
+# Define assets here in a format similar to cargo-deb, which cargo-generate-rpm might accept.
+assets = [
+  { source = "target/release/git-switch", target = "/usr/bin/git-switch", mode = "0755" },
+  { source = "README.md", target = "/usr/share/doc/git-switch/README.md", mode = "0644" },
+  { source = "LICENSE", target = "/usr/share/doc/git-switch/LICENSE", mode = "0644" }
+]
+# You might also want to specify other RPM fields here if needed, for example:
+# release = "1%{?dist}"
+# summary = "CLI tool to switch between multiple Git accounts"
+# description = "git-switch allows users to manage and switch between multiple Git accounts. It handles SSH key management and Git configuration updates automatically."
 # [package.metadata.generate-rpm.changelog]
-# "* Mon Jan 01 2024 Your Name <your.email@example.com> - {version}-1" = ["Initial RPM release."]
-
-# If you want to specify a changelog directly for cargo-generate-rpm, you can do it like this:
-# [package.metadata.generate-rpm.changelog]
-# "* $(date +'%a %b %d %Y') Ren Hoshizora <blackswordman@gmail.com> - {version}-1" = ["Automated RPM release."]
-
-# Ensure LICENSE is included in RPM assets if not already handled by default
-# This is now handled in [package.metadata.rpm.files] above
+# "* $(shell date +'%a %b %d %Y') Ren Hoshizora <blackswordman@gmail.com> - %{{version}}-1" = ["Automated RPM release."]

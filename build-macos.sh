@@ -274,6 +274,11 @@ if [[ $BUILD_DMG -eq 1 ]]; then
   else
     # Use create-dmg for better DMG
     DMG_NAME="git-switch-$VERSION_NO_V-macos-amd64.dmg"
+    FINAL_DMG_PATH="target/packages/$DMG_NAME"
+
+    print_info "Ensuring final DMG path $FINAL_DMG_PATH is clear before running create-dmg..."
+    rm -f "$FINAL_DMG_PATH"
+
     TEMP_DMG_DIR="target/dmg-temp"
     
     mkdir -p "$TEMP_DMG_DIR"
@@ -286,11 +291,11 @@ if [[ $BUILD_DMG -eq 1 ]]; then
       --window-pos 200 120 \
       --window-size 600 400 \
       --hide-extension git-switch \
-      "target/packages/$DMG_NAME" \
+      "$FINAL_DMG_PATH" \
       "$TEMP_DMG_DIR"
     
     rm -rf "$TEMP_DMG_DIR"
-    print_success "DMG created: target/packages/$DMG_NAME"
+    print_success "DMG created: $FINAL_DMG_PATH"
   fi
 fi
 

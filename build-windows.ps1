@@ -292,21 +292,21 @@ $MsiFileName = "$($AppName)-$($VersionNoV)-windows-amd64.msi" # Use VersionNoV f
 $MsiFilePath = Join-Path $MsiOutDir $MsiFileName
 
 Write-Info "Compiling WiX source file: $WxsFile"
-# Pass ProductVersion to WiX, ensuring it doesn't have 'v'
 $WixProductVersion = $VersionNoV 
-# Define the source of the main executable for WiX
 $BinarySourceDir = Join-Path $ProjectRoot "target\\release"
 
-# Candle command
-# Ensure paths with spaces are quoted if necessary, though $ProjectRoot typically doesn't have them in CI
+# Define arguments for candle.exe
 $CandleArgs = @(
-    "`"$WxsFile`"",
-    "-out `"$WixObjDir\\`"", # Output .wixobj files to this directory
+    $WxsFile,
+    "-out",
+    $WixObjDir,
     "-dProductVersion_WIX=$WixProductVersion",
-    "-dBinarySourceDir=`"$BinarySourceDir`"" # Pass the directory of git-switch.exe
+    "-dBinarySourceDir=$BinarySourceDir"
 )
-Write-Host "Running: $CandleExe $CandleArgs"
-Invoke-Expression "$CandleExe $CandleArgs"
+
+Write-Host "Running: $CandleExe $($CandleArgs -join ' ')" # Log the command for readability
+& $CandleExe @CandleArgs # Execute using call operator and splatting
+
 if ($LASTEXITCODE -ne 0) {
     Write-Error "WiX Candle compilation failed."
     exit 1
@@ -314,16 +314,21 @@ if ($LASTEXITCODE -ne 0) {
 Write-Success "WiX source compiled successfully."
 
 Write-Info "Linking WiX object files to create MSI: $MsiFilePath"
-# Light command
+
+# Define arguments for light.exe
 $LightArgs = @(
-    "`"$WixObjDir\\git-switch.wixobj`"", # Assuming wxs filename is git-switch.wxs
-    "-out `"$MsiFilePath`"",
-    "-ext WixUIExtension", # Include WixUIExtension for standard UI
-    "-ext WixUtilExtension" # Include WixUtilExtension if using util:* elements
-    # Add other extensions if needed, e.g. -ext WixNetFxExtension
+    (Join-Path $WixObjDir "git-switch.wixobj"), # Path to .wixobj file
+    "-out",
+    $MsiFilePath,
+    "-ext",
+    "WixUIExtension",
+    "-ext",
+    "WixUtilExtension"
 )
-Write-Host "Running: $LightExe $LightArgs"
-Invoke-Expression "$LightExe $LightArgs"
+
+Write-Host "Running: $LightExe $($LightArgs -join ' ')" # Log the command for readability
+& $LightExe @LightArgs # Execute using call operator and splatting
+
 if ($LASTEXITCODE -ne 0) {
     Write-Error "WiX Light linking failed."
     exit 1

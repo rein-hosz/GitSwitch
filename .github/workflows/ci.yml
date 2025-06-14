@@ -80,7 +80,13 @@ jobs:
             # Test SSH agent connectivity
             try {
               $testResult = ssh-add -l 2>&1
-              Write-Host "SSH agent test result: $testResult"
+              $exitCode = $LASTEXITCODE
+              if ($exitCode -eq 0 -or $exitCode -eq 1) {
+                Write-Host "SSH agent test result: $testResult"
+                Write-Host "SSH agent is working correctly (exit code: $exitCode)"
+              } else {
+                Write-Host "SSH agent connectivity issue (exit code: $exitCode): $testResult"
+              }
             } catch {
               Write-Host "SSH agent connectivity test failed: $($_.Exception.Message)"
             }

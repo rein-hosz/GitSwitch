@@ -81,11 +81,11 @@ requires = ["git", "openssh"]
 
 [package.metadata.generate-rpm]
 # Attempt to satisfy "Missing field: package.assets" error
-# Define assets here in a format similar to cargo-deb, which cargo-generate-rpm might accept.
+# Define assets here, using "dest" for destination path as expected by cargo-generate-rpm.
 assets = [
-  { source = "target/release/git-switch", target = "/usr/bin/git-switch", mode = "0755" },
-  { source = "README.md", target = "/usr/share/doc/git-switch/README.md", mode = "0644" },
-  { source = "LICENSE", target = "/usr/share/doc/git-switch/LICENSE", mode = "0644" }
+  { source = "target/release/git-switch", dest = "/usr/bin/git-switch", mode = "0755" },
+  { source = "README.md", dest = "/usr/share/doc/git-switch/README.md", mode = "0644" },
+  { source = "LICENSE", dest = "/usr/share/doc/git-switch/LICENSE", mode = "0644" }
 ]
 # You might also want to specify other RPM fields here if needed, for example:
 # release = "1%{?dist}"

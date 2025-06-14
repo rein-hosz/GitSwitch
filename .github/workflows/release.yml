@@ -70,6 +70,7 @@ jobs:
     runs-on: windows-latest
     outputs:
       version: ${{ steps.get_version.outputs.VERSION }}
+      version_no_v: ${{ steps.get_version.outputs.VERSION_NO_V }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -81,8 +82,10 @@ jobs:
         shell: pwsh
         run: |
           $VERSION_TAG = git describe --tags --abbrev=0
+          $VERSION_NO_V_TAG = $VERSION_TAG.TrimStart('v')
           Add-Content -Path $env:GITHUB_OUTPUT -Value "VERSION=$VERSION_TAG"
-          Write-Host "Windows: Building version: $VERSION_TAG"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "VERSION_NO_V=$VERSION_NO_V_TAG"
+          Write-Host "Windows: Building version: $VERSION_TAG (VERSION_NO_V: $VERSION_NO_V_TAG)"
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -120,6 +123,7 @@ jobs:
     runs-on: macos-latest
     outputs:
       version: ${{ steps.get_version.outputs.VERSION }}
+      version_no_v: ${{ steps.get_version.outputs.VERSION_NO_V }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -130,8 +134,10 @@ jobs:
         id: get_version
         run: |
           VERSION_TAG=$(git describe --tags --abbrev=0)
+          VERSION_NO_V_TAG=$(echo "$VERSION_TAG" | sed 's/^v//')
           echo "VERSION=${VERSION_TAG}" >> $GITHUB_OUTPUT
-          echo "macOS: Building version: $VERSION_TAG"
+          echo "VERSION_NO_V=${VERSION_NO_V_TAG}" >> $GITHUB_OUTPUT
+          echo "macOS: Building version: $VERSION_TAG (VERSION_NO_V: $VERSION_NO_V_TAG)"
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -163,9 +169,9 @@ jobs:
         with:
           name: macos-packages-${{ steps.get_version.outputs.VERSION }}
           path: |
-            target/packages/git-switch-*-macos-amd64.tar.gz
-            target/packages/git-switch-*-macos-amd64.dmg
-            target/packages/git-switch-*-macos-amd64.pkg
+            target/packages/git-switch-${{ steps.get_version.outputs.VERSION_NO_V }}-macos-amd64.tar.gz
+            target/packages/git-switch-${{ steps.get_version.outputs.VERSION_NO_V }}-macos-amd64.dmg
+            target/packages/git-switch-${{ steps.get_version.outputs.VERSION_NO_V }}-macos-amd64.pkg
           if-no-files-found: error
 
   create-release:

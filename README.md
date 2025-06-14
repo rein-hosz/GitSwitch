@@ -2,6 +2,7 @@
 
 **The ultimate Git identity management tool for developers who juggle multiple accounts.**
 
+[![CI](https://github.com/rein-hosz/GitSwitch/actions/workflows/ci.yml/badge.svg)](https://github.com/rein-hosz/GitSwitch/actions/workflows/ci.yml)
 [![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()

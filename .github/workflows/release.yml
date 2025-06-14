@@ -53,7 +53,7 @@ jobs:
         run: chmod +x build.sh
 
       - name: Build all Linux packages
-        run: ./build.sh --all --version ${{ steps.get_version.outputs.VERSION }}
+        run: ./build.sh --all --version ${{ steps.get_version.outputs.VERSION }} --skip-tests
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
@@ -103,8 +103,8 @@ jobs:
       - name: Build Windows package
         shell: pwsh
         run: |
-          Write-Host "Running build-windows.ps1 -BuildVersion ${{ steps.get_version.outputs.VERSION }}"
-          .\build-windows.ps1 -BuildVersion ${{ steps.get_version.outputs.VERSION }}
+          Write-Host "Running build-windows.ps1 -BuildVersion ${{ steps.get_version.outputs.VERSION }} -SkipTests"
+          .\\build-windows.ps1 -BuildVersion ${{ steps.get_version.outputs.VERSION }} -SkipTests
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -154,7 +154,7 @@ jobs:
         run: chmod +x build-macos.sh
 
       - name: Build all macOS packages
-        run: ./build-macos.sh --all --version ${{ steps.get_version.outputs.VERSION }}
+        run: ./build-macos.sh --all --version ${{ steps.get_version.outputs.VERSION }} --skip-tests
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4

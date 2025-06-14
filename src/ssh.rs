@@ -174,7 +174,9 @@ pub fn add_ssh_key(key_path_str: &str) -> Result<bool> {
         Err(e) => {
             let error_msg = e.to_string();
             // Check if it's because the agent is not running
-            if error_msg.contains("Could not open a connection to your authentication agent") {
+            if error_msg.contains("Could not open a connection to your authentication agent")
+                || error_msg.contains("Error connecting to agent: Device or resource busy")
+            {
                 eprintln!(
                     "⚠️ ssh-agent not running or inaccessible. Please start it (e.g., `eval $(ssh-agent -s)`) and try again."
                 );

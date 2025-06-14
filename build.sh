@@ -127,7 +127,7 @@ else
   fi
   if [ -z "$VERSION" ] && [ -f Cargo.toml ]; then
     # Try to get version from Cargo.toml, ensure it starts with 'v'
-    CARGO_VERSION_RAW=$(grep '^version' Cargo.toml | head -1 | sed 's/version *= *"\\([^"]*\\)".*/\\1/')
+    CARGO_VERSION_RAW=$(grep '^version' Cargo.toml | head -1 | sed 's/version *= *"\([^"]*\)".*/\1/')
     if [ -n "$CARGO_VERSION_RAW" ]; then
       if [[ "$CARGO_VERSION_RAW" == v* ]]; then
         VERSION="$CARGO_VERSION_RAW"

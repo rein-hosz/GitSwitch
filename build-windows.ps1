@@ -284,8 +284,15 @@ if (-not (Test-Path $WxsFile)) {
     exit 1
 }
 
-# Create directories for WiX output
-New-Item -ItemType Directory -Path $WixObjDir -Force -ErrorAction SilentlyContinue | Out-Null
+# Ensure WiX object directory is clean and accessible
+if (Test-Path $WixObjDir) {
+    Write-Info "Removing existing WiX object directory: $WixObjDir"
+    Remove-Item -Recurse -Force $WixObjDir -ErrorAction SilentlyContinue # Allow to continue if it fails (e.g. dir not empty by another process)
+}
+Write-Info "Creating WiX object directory: $WixObjDir"
+New-Item -ItemType Directory -Path $WixObjDir -Force | Out-Null
+
+# Ensure MSI output directory exists
 New-Item -ItemType Directory -Path $MsiOutDir -Force -ErrorAction SilentlyContinue | Out-Null
 
 $MsiFileName = "$($AppName)-$($VersionNoV)-windows-amd64.msi" # Use VersionNoV for MSI

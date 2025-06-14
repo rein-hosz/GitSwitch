@@ -8,21 +8,21 @@ license = "MIT"
 build = "build.rs"
 
 [dependencies]
-shellexpand = "3.1"
-clap = { version = "4", features = ["derive"] }
-dirs = "5.0.1"
+shellexpand = "3.1.1"
+clap = { version = "4.5.40", features = ["derive"] }
+dirs = "6.0.0"
 home = "0.5.9"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-thiserror = "1.0"
+thiserror = "2.0.12"
 anyhow = "1.0"
 # Security-focused dependencies
-keyring = "2.0"
+keyring = "3.6.2"
 zeroize = "1.6"
-rand = "0.8"
-base64 = "0.21"
+rand = "0.9.1"
+base64 = "0.22.1"
 # Better UX dependencies
-colored = "2.0"
+colored = "3.0.0"
 indicatif = "0.17"
 dialoguer = "0.11"
 # Better configuration format

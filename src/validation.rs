@@ -21,12 +21,11 @@ pub fn validate_ssh_key(key_path: &Path) -> Result<()> {
         });
     }
 
-    // Check file permissions (should be readable only by owner)
-    let metadata = std::fs::metadata(key_path)?;
-
+    // Check file permissions (should be readable only by owner on Unix)
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
+        let metadata = std::fs::metadata(key_path)?;
         let permissions = metadata.permissions();
         let mode = permissions.mode();
         if mode & 0o077 != 0 {

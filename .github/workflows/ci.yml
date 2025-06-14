@@ -122,6 +122,9 @@ jobs:
             Write-Host "Added Git SSH tools to PATH: $gitSshPath"
           }
 
+          # Ensure the script exits with success code
+          exit 0
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 

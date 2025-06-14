@@ -110,7 +110,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-package-${{ steps.get_version.outputs.VERSION }}
-          path: target/release/git-switch-${{ steps.get_version.outputs.VERSION }}-windows-amd64.zip
+          path: |
+            target/packages/git-switch-${{ steps.get_version.outputs.VERSION }}-windows-amd64.zip
+            target/packages/git-switch-${{ steps.get_version.outputs.VERSION_NO_V }}-windows-amd64.msi
           if-no-files-found: error
 
   build-macos:
@@ -201,6 +203,7 @@ jobs:
 
           # Copy Windows package
           find dist/windows-package-${VERSION_TAG}/ -name "*.zip" -exec cp {} release_assets/ \;
+          find dist/windows-package-${VERSION_TAG}/ -name "*.msi" -exec cp {} release_assets/ \;
 
           # Copy macOS packages
           find dist/macos-packages-${VERSION_TAG}/ -name "*.tar.gz" -exec cp {} release_assets/ \;
@@ -240,6 +243,7 @@ jobs:
           echo "" >> CHANGELOG.md
           echo "#### Windows:" >> CHANGELOG.md
           echo "- **ZIP Package**: Includes executable and PowerShell installer" >> CHANGELOG.md
+          echo "- **MSI Installer**: Standard Windows installer package" >> CHANGELOG.md
           echo "" >> CHANGELOG.md
           echo "#### macOS:" >> CHANGELOG.md
           echo "- **DMG Image**: Drag-and-drop installation" >> CHANGELOG.md

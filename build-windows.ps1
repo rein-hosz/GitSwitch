@@ -198,87 +198,149 @@ cargo build --release
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Cargo build failed!"
     if (Test-Path $CargoTomlBackupPath) {
-        Write-Info "Restoring Cargo.toml from backup..."
-        Move-Item -Path $CargoTomlBackupPath -Destination $CargoTomlPath -Force
+        Write-Info "Reverting Cargo.toml from backup..."
+        Move-Item -Path $CargoTomlBackupPath -Destination $CargoTomlPath -Force -ErrorAction SilentlyContinue
         Write-Success "Cargo.toml restored"
     }
     exit 1
 }
-Write-Success "$BinaryName built successfully"
+Write-Success "Cargo build completed successfully"
 
-# Clean up Cargo.toml backup if it exists
-if (Test-Path $CargoTomlBackupPath) {
-    Remove-Item -Path $CargoTomlBackupPath -ErrorAction SilentlyContinue
+$BinaryPath = Join-Path $ProjectRoot "target\\release\\$($BinaryName).exe"
+if (-not (Test-Path $BinaryPath)) {
+    Write-Error "Binary not found at $BinaryPath"
+    exit 1
+}
+Write-Success "Binary built successfully at $BinaryPath"
+
+# Create target directory for packages if it doesn't exist
+$PackagesDir = Join-Path $ProjectRoot "target\\packages"
+if (-not (Test-Path $PackagesDir)) {
+    New-Item -ItemType Directory -Path $PackagesDir -Force | Out-Null
 }
 
-# Locate the built executable
-Write-Info "Locating built executable..."
+# Create ZIP package
+$ZipFileName = "$($AppName)-$($Version)-windows-amd64.zip"
+$ZipFilePath = Join-Path $PackagesDir $ZipFileName
+Write-Info "Creating ZIP package: $ZipFilePath"
 
-$ExePath = ""
-$ProjectRoot = (Get-Location).Path
+# Create a temporary directory for ZIP contents
+$TempZipDir = Join-Path $ProjectRoot "target\\zip-temp"
+if (Test-Path $TempZipDir) {
+    Remove-Item -Recurse -Force $TempZipDir
+}
+New-Item -ItemType Directory -Path $TempZipDir -Force | Out-Null
+Copy-Item -Path $BinaryPath -Destination $TempZipDir
+Copy-Item -Path (Join-Path $ProjectRoot "README.md") -Destination $TempZipDir -ErrorAction SilentlyContinue
+Copy-Item -Path (Join-Path $ProjectRoot "LICENSE") -Destination $TempZipDir -ErrorAction SilentlyContinue
+# Add installer script if it exists
+if (Test-Path (Join-Path $ProjectRoot "install.ps1")) {
+    Copy-Item -Path (Join-Path $ProjectRoot "install.ps1") -Destination $TempZipDir
+}
 
-$PossibleExePaths = @(
-    (Join-Path $ProjectRoot "target\release\$BinaryName.exe"),
-    (Join-Path $ProjectRoot "target\x86_64-pc-windows-msvc\release\$BinaryName.exe"),
-    (Join-Path $ProjectRoot "target\x86_64-pc-windows-gnu\release\$BinaryName.exe")
-)
+Compress-Archive -Path (Join-Path $TempZipDir "*") -DestinationPath $ZipFilePath -Force
+Write-Success "ZIP package created: $ZipFilePath"
+Remove-Item -Recurse -Force $TempZipDir
 
-foreach ($PathAttempt in $PossibleExePaths) {
-    if (Test-Path -LiteralPath $PathAttempt -PathType Leaf) {
-        $ExePath = $PathAttempt
-        Write-Success "Found executable at: $ExePath"
-        break
+
+# Build MSI package using WiX
+Write-Header "Building MSI Package with WiX Toolset"
+
+$WixDir = $env:WIX # Standard environment variable for WiX Toolset
+if (-not $WixDir -or -not (Test-Path (Join-Path $WixDir "bin\\candle.exe"))) {
+    Write-Warning "WiX Toolset not found or WIX environment variable not set."
+    Write-Warning "Attempting to find WiX in common Program Files locations..."
+    $ProgramFilesPaths = @(
+        "$env:ProgramFiles (x86)\\WiX Toolset v3.11", # Common for v3.x
+        "$env:ProgramFiles\\WiX Toolset v3.11",
+        "$env:ProgramFiles (x86)\\WiX Toolset v4.0", # Common for v4.x
+        "$env:ProgramFiles\\WiX Toolset v4.0"
+    )
+    foreach ($PathItem in $ProgramFilesPaths) {
+        if (Test-Path (Join-Path $PathItem "bin\\candle.exe")) {
+            $WixDir = $PathItem
+            Write-Info "Found WiX Toolset at: $WixDir"
+            break
+        }
     }
 }
 
-if ([string]::IsNullOrEmpty($ExePath)) {
-    Write-Error "Could not find $BinaryName.exe in expected locations:"
-    $PossibleExePaths | ForEach-Object { Write-Host "  - $_" }
-    Write-Info "Checking target directory contents..."
-    if (Test-Path (Join-Path $ProjectRoot "target\release")) {
-        Get-ChildItem -Path (Join-Path $ProjectRoot "target\release") -ErrorAction SilentlyContinue
-    }
+if (-not $WixDir -or -not (Test-Path (Join-Path $WixDir "bin\\candle.exe"))) {
+    Write-Error "WiX Toolset (candle.exe, light.exe) not found. Please install it and ensure WIX environment variable is set or it's in a standard Program Files location."
+    Write-Error "Download from: https://wixtoolset.org/releases/"
+    # Optionally, restore Cargo.toml here if you want to halt completely
+    # if (Test-Path $CargoTomlBackupPath) { Move-Item -Path $CargoTomlBackupPath -Destination $CargoTomlPath -Force }
+    exit 1 # Or continue without MSI
+}
+
+$CandleExe = Join-Path $WixDir "bin\\candle.exe"
+$LightExe = Join-Path $WixDir "bin\\light.exe"
+$WxsFile = Join-Path $ProjectRoot "wix\\git-switch.wxs"
+$WixObjDir = Join-Path $ProjectRoot "target\\wixobj"
+$MsiOutDir = $PackagesDir # Place MSI alongside ZIP
+
+if (-not (Test-Path $WxsFile)) {
+    Write-Error "WiX source file not found: $WxsFile"
     exit 1
 }
 
-# Create packaging directory
-$PackageDir = Join-Path $ProjectRoot "target\release\package"
-if (Test-Path $PackageDir) {
-    Remove-Item -Recurse -Force $PackageDir
+# Create directories for WiX output
+New-Item -ItemType Directory -Path $WixObjDir -Force -ErrorAction SilentlyContinue | Out-Null
+New-Item -ItemType Directory -Path $MsiOutDir -Force -ErrorAction SilentlyContinue | Out-Null
+
+$MsiFileName = "$($AppName)-$($VersionNoV)-windows-amd64.msi" # Use VersionNoV for MSI
+$MsiFilePath = Join-Path $MsiOutDir $MsiFileName
+
+Write-Info "Compiling WiX source file: $WxsFile"
+# Pass ProductVersion to WiX, ensuring it doesn't have 'v'
+$WixProductVersion = $VersionNoV 
+# Define the source of the main executable for WiX
+$BinarySourceDir = Join-Path $ProjectRoot "target\\release"
+
+# Candle command
+# Ensure paths with spaces are quoted if necessary, though $ProjectRoot typically doesn't have them in CI
+$CandleArgs = @(
+    "`"$WxsFile`"",
+    "-out `"$WixObjDir\\`"", # Output .wixobj files to this directory
+    "-dProductVersion_WIX=$WixProductVersion",
+    "-dBinarySourceDir=`"$BinarySourceDir`"" # Pass the directory of git-switch.exe
+)
+Write-Host "Running: $CandleExe $CandleArgs"
+Invoke-Expression "$CandleExe $CandleArgs"
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "WiX Candle compilation failed."
+    exit 1
 }
-New-Item -ItemType Directory -Path $PackageDir | Out-Null
+Write-Success "WiX source compiled successfully."
 
-Write-Info "Packaging files..."
+Write-Info "Linking WiX object files to create MSI: $MsiFilePath"
+# Light command
+$LightArgs = @(
+    "`"$WixObjDir\\git-switch.wixobj`"", # Assuming wxs filename is git-switch.wxs
+    "-out `"$MsiFilePath`"",
+    "-ext WixUIExtension", # Include WixUIExtension for standard UI
+    "-ext WixUtilExtension" # Include WixUtilExtension if using util:* elements
+    # Add other extensions if needed, e.g. -ext WixNetFxExtension
+)
+Write-Host "Running: $LightExe $LightArgs"
+Invoke-Expression "$LightExe $LightArgs"
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "WiX Light linking failed."
+    exit 1
+}
+Write-Success "MSI package created successfully: $MsiFilePath"
 
-# Copy the executable
-Copy-Item -Path $ExePath -Destination (Join-Path $PackageDir "$BinaryName.exe")
-Write-Success "Copied executable to package"
+# Clean up WiX object directory
+Remove-Item -Recurse -Force $WixObjDir -ErrorAction SilentlyContinue
 
-# Copy supporting files
-$FilesToInclude = @("README.md", "LICENSE", "install.ps1")
-foreach ($File in $FilesToInclude) {
-    $SourceFile = Join-Path $ProjectRoot $File
-    if (Test-Path $SourceFile) {
-        Copy-Item -Path $SourceFile -Destination (Join-Path $PackageDir $File)
-        Write-Success "Copied $File to package"
-    } else {
-        Write-Warning "$File not found, skipping"
-    }
+# Restore Cargo.toml if it was backed up
+if (Test-Path $CargoTomlBackupPath) {
+    Write-Info "Restoring original Cargo.toml..."
+    Move-Item -Path $CargoTomlBackupPath -Destination $CargoTomlPath -Force -ErrorAction SilentlyContinue
+    Write-Success "Cargo.toml restored"
 }
 
-# Create the ZIP file
-$ZipFileName = "$AppName-$Version-windows-amd64.zip"
-$ZipFilePath = Join-Path $ProjectRoot "target\release\$ZipFileName"
-if (Test-Path $ZipFilePath) {
-    Remove-Item $ZipFilePath
-}
-
-Compress-Archive -Path (Join-Path $PackageDir "*") -DestinationPath $ZipFilePath
-Write-Success "$ZipFileName created at $ZipFilePath"
-
-# Clean up temporary package directory
-Remove-Item -Recurse -Force $PackageDir
-
-Write-Header "Build completed successfully!"
-Write-Success "Package: $ZipFileName"
-Write-Success "Location: $ZipFilePath"
+Write-Header "Windows Build and Packaging Complete!"
+Write-Success "Artifacts available in: $PackagesDir"
+Write-Host "  - ZIP: $ZipFilePath"
+Write-Host "  - MSI: $MsiFilePath"

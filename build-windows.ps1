@@ -277,7 +277,7 @@ $CandleExe = Join-Path $WixDir "bin\\candle.exe"
 $LightExe = Join-Path $WixDir "bin\\light.exe"
 $WxsFile = Join-Path $ProjectRoot "wix\\git-switch.wxs"
 $WixObjDir = Join-Path $ProjectRoot "target\\wixobj"
-$MsiOutDir = $PackagesDir # Place MSI alongside ZIP
+$MsiOutDir = $PackagesDir
 
 if (-not (Test-Path $WxsFile)) {
     Write-Error "WiX source file not found: $WxsFile"
@@ -286,11 +286,19 @@ if (-not (Test-Path $WxsFile)) {
 
 # Ensure WiX object directory is clean and accessible
 if (Test-Path $WixObjDir) {
-    Write-Info "Removing existing WiX object directory: $WixObjDir"
-    Remove-Item -Recurse -Force $WixObjDir -ErrorAction SilentlyContinue # Allow to continue if it fails (e.g. dir not empty by another process)
+    Write-Info "Attempting to remove existing WiX object directory: $WixObjDir"
+    Remove-Item -Recurse -Force $WixObjDir -ErrorAction SilentlyContinue
+    if (Test-Path $WixObjDir) {
+        Write-Warning "Failed to remove existing WiX object directory: $WixObjDir. This might cause issues."
+        # Attempt to clear contents if directory removal failed but it exists
+        Get-ChildItem -Path $WixObjDir -Recurse | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
+    } else {
+        Write-Success "Successfully removed or ensured non-existence of WiX object directory."
+    }
 }
 Write-Info "Creating WiX object directory: $WixObjDir"
 New-Item -ItemType Directory -Path $WixObjDir -Force | Out-Null
+Start-Sleep -Milliseconds 500 # Pause for 0.5 seconds for filesystem to settle
 
 # Ensure MSI output directory exists
 New-Item -ItemType Directory -Path $MsiOutDir -Force -ErrorAction SilentlyContinue | Out-Null
@@ -303,10 +311,11 @@ $WixProductVersion = $VersionNoV
 $BinarySourceDir = Join-Path $ProjectRoot "target\\release"
 
 # Define arguments for candle.exe
+$CandleOutDir = Join-Path $WixObjDir "" # Ensures path ends with a backslash, clearly indicating a directory
 $CandleArgs = @(
     $WxsFile,
     "-out",
-    $WixObjDir,
+    $CandleOutDir, # Use the path with a trailing slash
     "-dProductVersion_WIX=$WixProductVersion",
     "-dBinarySourceDir=$BinarySourceDir"
 )

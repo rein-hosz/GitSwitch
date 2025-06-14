@@ -80,15 +80,15 @@ jobs:
           }
 
           # Wait for the agent to be ready
-          Start-Sleep -Seconds 3
+          Start-Sleep -Seconds 5 # Increased sleep duration
 
-          # Set SSH_AUTH_SOCK environment variable for the job
-          # The named pipe for OpenSSH agent on Windows is fixed
-          $SSH_AUTH_SOCK = "\\.\pipe\openssh-ssh-agent"
-          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          Write-Host "SSH_AUTH_SOCK set to: $SSH_AUTH_SOCK"
+          # Set SSH_AUTH_SOCK environment variable
+          $SshAuthSockValue = "\\\\.\\pipe\\openssh-ssh-agent"
+          $env:SSH_AUTH_SOCK = $SshAuthSockValue  # Set for current script session
+          echo "SSH_AUTH_SOCK=$SshAuthSockValue" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append # Set for subsequent steps
+          Write-Host "SSH_AUTH_SOCK set to: $env:SSH_AUTH_SOCK (for current script and subsequent steps)"
 
-          # Add Git\'s SSH tools to PATH to ensure ssh-add is the one from Git
+          # Add Git\\'s SSH tools to PATH to ensure ssh-add is the one from Git
           $gitSshPath = "C:\\Program Files\\Git\\usr\\bin"
           if (Test-Path $gitSshPath) {
             $env:PATH = "$gitSshPath;" + $env:PATH
